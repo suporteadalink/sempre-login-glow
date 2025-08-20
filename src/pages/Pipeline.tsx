@@ -12,6 +12,7 @@ import { MoreHorizontal, Plus, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 interface PipelineStage {
   id: number;
@@ -35,9 +36,10 @@ interface SortableOpportunityCardProps {
   opportunity: Opportunity;
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
+  isAdmin: boolean;
 }
 
-function SortableOpportunityCard({ opportunity, onEdit, onDelete }: SortableOpportunityCardProps) {
+function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: SortableOpportunityCardProps) {
   const {
     attributes,
     listeners,
@@ -55,7 +57,7 @@ function SortableOpportunityCard({ opportunity, onEdit, onDelete }: SortableOppo
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <OpportunityCard opportunity={opportunity} onEdit={onEdit} onDelete={onDelete} />
+      <OpportunityCard opportunity={opportunity} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} />
     </div>
   );
 }
@@ -65,9 +67,10 @@ interface DroppableStageProps {
   opportunities: Opportunity[];
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
+  isAdmin: boolean;
 }
 
-function DroppableStage({ stage, opportunities, onEdit, onDelete }: DroppableStageProps) {
+function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin }: DroppableStageProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage-${stage.id}`,
   });
@@ -107,6 +110,7 @@ function DroppableStage({ stage, opportunities, onEdit, onDelete }: DroppableSta
               opportunity={opportunity}
               onEdit={onEdit}
               onDelete={onDelete}
+              isAdmin={isAdmin}
             />
           ))}
         </SortableContext>
@@ -119,9 +123,10 @@ interface OpportunityCardProps {
   opportunity: Opportunity;
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
+  isAdmin: boolean;
 }
 
-function OpportunityCard({ opportunity, onEdit, onDelete }: OpportunityCardProps) {
+function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: OpportunityCardProps) {
   return (
     <Card className="rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border">
       <CardHeader className="pb-3">
@@ -139,12 +144,14 @@ function OpportunityCard({ opportunity, onEdit, onDelete }: OpportunityCardProps
               <DropdownMenuItem onClick={() => onEdit(opportunity)}>
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => onDelete(opportunity.id)}
-                className="text-destructive"
-              >
-                Excluir
-              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem 
+                  onClick={() => onDelete(opportunity.id)}
+                  className="text-destructive"
+                >
+                  Excluir
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -166,6 +173,7 @@ function OpportunityCard({ opportunity, onEdit, onDelete }: OpportunityCardProps
 }
 
 export default function Pipeline() {
+  const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -208,6 +216,25 @@ export default function Pipeline() {
       return data as Opportunity[];
     }
   });
+
+  // Get user role
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+    enabled: !!user?.id
+  });
+
+  const isAdmin = userRole === 'admin';
 
   const updateOpportunityMutation = useMutation({
     mutationFn: async ({ id, stage_id }: { id: number; stage_id: number }) => {
@@ -286,6 +313,15 @@ export default function Pipeline() {
   };
 
   const handleDelete = (id: number) => {
+    if (!isAdmin) {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir oportunidades.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (confirm("Tem certeza que deseja excluir esta oportunidade?")) {
       deleteOpportunityMutation.mutate(id);
     }
@@ -345,26 +381,28 @@ export default function Pipeline() {
             );
             
             return (
-              <DroppableStage
-                key={stage.id}
-                stage={stage}
-                opportunities={stageOpportunities}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            );
-          })}
-        </div>
+                <DroppableStage
+                  key={stage.id}
+                  stage={stage}
+                  opportunities={stageOpportunities}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  isAdmin={isAdmin}
+                />
+              );
+            })}
+          </div>
 
-        <DragOverlay>
-          {activeOpportunity ? (
-            <OpportunityCard
-              opportunity={activeOpportunity}
-              onEdit={() => {}}
-              onDelete={() => {}}
-            />
-          ) : null}
-        </DragOverlay>
+          <DragOverlay>
+            {activeOpportunity ? (
+              <OpportunityCard
+                opportunity={activeOpportunity}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                isAdmin={isAdmin}
+              />
+            ) : null}
+          </DragOverlay>
       </DndContext>
     </div>
   );
