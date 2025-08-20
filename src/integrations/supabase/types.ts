@@ -432,6 +432,51 @@ export type Database = {
           },
         ]
       }
+      proposals: {
+        Row: {
+          company_id: number | null
+          created_at: string | null
+          id: number
+          owner_id: string
+          status: string | null
+          title: string
+          value: number | null
+        }
+        Insert: {
+          company_id?: number | null
+          created_at?: string | null
+          id?: never
+          owner_id: string
+          status?: string | null
+          title: string
+          value?: number | null
+        }
+        Update: {
+          company_id?: number | null
+          created_at?: string | null
+          id?: never
+          owner_id?: string
+          status?: string | null
+          title?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           company_id: number | null

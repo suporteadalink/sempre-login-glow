@@ -97,7 +97,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
 
       if (proposal) {
         const { error } = await supabase
-          .from('proposals')
+          .from('proposals' as any)
           .update(proposalData)
           .eq('id', proposal.id);
 
@@ -109,7 +109,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
         });
       } else {
         const { error } = await supabase
-          .from('proposals')
+          .from('proposals' as any)
           .insert([proposalData]);
 
         if (error) throw error;

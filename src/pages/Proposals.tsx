@@ -33,17 +33,12 @@ export default function Proposals() {
   const fetchProposals = async () => {
     try {
       const { data, error } = await supabase
-        .from('proposals')
-        .select(`
-          *,
-          companies (
-            name
-          )
-        `)
+        .from('proposals' as any)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProposals(data || []);
+      setProposals((data as any) || []);
     } catch (error) {
       console.error('Error fetching proposals:', error);
       toast({
@@ -68,7 +63,7 @@ export default function Proposals() {
   const handleDelete = async (id: number) => {
     try {
       const { error } = await supabase
-        .from('proposals')
+        .from('proposals' as any)
         .delete()
         .eq('id', id);
 
@@ -169,7 +164,7 @@ export default function Proposals() {
                       {proposal.title}
                     </TableCell>
                     <TableCell>
-                      {proposal.companies?.name || 'N/A'}
+                      Cliente #{proposal.company_id || 'N/A'}
                     </TableCell>
                     <TableCell>
                       {formatCurrency(proposal.value)}

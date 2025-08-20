@@ -1,14 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  BarChart3,
+  Home,
+  Target,
   Settings,
   FolderOpen,
   Building2,
-  GitBranch,
-  Plus,
+  Users,
   FileText,
   CheckSquare,
-  Users,
   LogOut
 } from "lucide-react";
 
@@ -30,14 +29,13 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Pipeline", url: "/pipeline", icon: GitBranch },
+  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Pipeline", url: "/pipeline", icon: Target },
+  { title: "Projetos", url: "/projetos", icon: FolderOpen },
   { title: "Empresas", url: "/empresas", icon: Building2 },
   { title: "Contatos", url: "/contatos", icon: Users },
-  { title: "Projetos", url: "/projetos", icon: FolderOpen },
-  { title: "Adições", url: "/adicoes", icon: Plus },
-  { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
+  { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
