@@ -15,6 +15,7 @@ const proposalSchema = z.object({
   company_id: z.string().min(1, "Cliente é obrigatório"),
   value: z.number().min(0, "Valor deve ser positivo").optional(),
   status: z.string().optional(),
+  pdf_file: z.instanceof(File).optional().or(z.literal(undefined)),
 });
 
 type ProposalFormData = z.infer<typeof proposalSchema>;
@@ -43,6 +44,7 @@ interface ProposalFormProps {
 export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProps) {
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ProposalFormData>({
@@ -78,6 +80,39 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
     fetchCompanies();
   }, []);
 
+  const uploadPDF = async (file: File): Promise<string | null> => {
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('propostas-pdf')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('propostas-pdf')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível fazer upload do PDF.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onSubmit = async (data: ProposalFormData) => {
     setLoading(true);
     try {
@@ -87,12 +122,21 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
         throw new Error('Usuário não autenticado');
       }
 
+      let pdfUrl = null;
+      if (data.pdf_file) {
+        pdfUrl = await uploadPDF(data.pdf_file);
+        if (!pdfUrl) {
+          throw new Error('Falha no upload do PDF');
+        }
+      }
+
       const proposalData = {
         title: data.title,
         company_id: parseInt(data.company_id),
         value: data.value || null,
         status: data.status || "Rascunho",
         owner_id: user.id,
+        pdf_url: pdfUrl,
       };
 
       if (proposal) {
@@ -221,6 +265,33 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
                   </SelectContent>
                 </Select>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="pdf_file"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Anexar Proposta em PDF</FormLabel>
+                <FormControl>
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      field.onChange(file);
+                    }}
+                    disabled={uploading}
+                  />
+                </FormControl>
+                <FormMessage />
+                {uploading && (
+                  <p className="text-sm text-muted-foreground">
+                    Enviando arquivo...
+                  </p>
+                )}
               </FormItem>
             )}
           />
