@@ -12,6 +12,7 @@ import Projects from "./pages/Projects";
 import Companies from "./pages/Companies";
 import Contacts from "./pages/Contacts";
 import Tasks from "./pages/Tasks";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
                   <Route path="/empresas" element={<Companies />} />
                   <Route path="/contatos" element={<Contacts />} />
                   <Route path="/tarefas" element={<Tasks />} />
+                  <Route path="/configuracoes" element={<Settings />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
