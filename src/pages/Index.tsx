@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   DollarSign, 
   Users, 
@@ -21,12 +22,38 @@ import {
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
+
+  async function loadDashboardData() {
+    try {
+      setLoadingMetrics(true);
+      // @ts-ignore - Function exists in database but not in types
+      const { data, error } = await supabase.rpc('get_dashboard_metrics');
+
+      if (error) {
+        console.error('Erro ao buscar métricas do dashboard:', error);
+      } else {
+        setDashboardData(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -46,28 +73,28 @@ const Index = () => {
   const metrics = [
     {
       title: "Receita Total",
-      value: "R$ 847.500",
+      value: dashboardData ? `R$ ${new Intl.NumberFormat('pt-BR').format(dashboardData.totalRevenue || 0)}` : "R$ 0",
       icon: DollarSign,
       iconColor: "bg-green-500",
       description: "Total arrecadado este mês"
     },
     {
       title: "Leads Ativos",
-      value: "127",
+      value: dashboardData?.activeLeads?.toString() || "0",
       icon: Users,
       iconColor: "bg-blue-500",
       description: "Leads em potencial"
     },
     {
       title: "Projetos Ativos",
-      value: "18",
+      value: dashboardData?.activeProjects?.toString() || "0",
       icon: FolderOpen,
       iconColor: "bg-purple-500",
       description: "Projetos em andamento"
     },
     {
       title: "Taxa de Conversão",
-      value: "24%",
+      value: dashboardData ? `${Math.round(dashboardData.conversionRate || 0)}%` : "0%",
       icon: Target,
       iconColor: "bg-yellow-500",
       description: "Leads convertidos em vendas"
