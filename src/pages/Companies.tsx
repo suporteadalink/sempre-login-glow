@@ -95,54 +95,10 @@ export default function Companies() {
     }
 
     try {
-      // First, delete all related records
-      const { error: contactsError } = await supabase
-        .from('contacts')
-        .delete()
-        .eq('company_id', id);
-
-      if (contactsError) throw contactsError;
-
-      const { error: projectsError } = await supabase
-        .from('projects')
-        .delete()
-        .eq('company_id', id);
-
-      if (projectsError) throw projectsError;
-
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('company_id', id);
-
-      if (tasksError) throw tasksError;
-
-      const { error: proposalsError } = await supabase
-        .from('proposals')
-        .delete()
-        .eq('company_id', id);
-
-      if (proposalsError) throw proposalsError;
-
-      const { error: opportunitiesError } = await supabase
-        .from('opportunities')
-        .delete()
-        .eq('company_id', id);
-
-      if (opportunitiesError) throw opportunitiesError;
-
-      const { error: activityLogError } = await supabase
-        .from('activity_log')
-        .delete()
-        .eq('related_company_id', id);
-
-      if (activityLogError) throw activityLogError;
-
-      // Finally, delete the company
-      const { error } = await supabase
-        .from('companies')
-        .delete()
-        .eq('id', id);
+      // Use the database function to safely delete the company and all related records
+      const { data, error } = await supabase.rpc('delete_company_with_relations', {
+        company_id_param: id
+      });
 
       if (error) throw error;
 

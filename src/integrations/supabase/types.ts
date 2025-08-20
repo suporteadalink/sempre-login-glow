@@ -593,6 +593,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_company_with_relations: {
+        Args: { company_id_param: number }
+        Returns: boolean
+      }
       get_dashboard_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
