@@ -332,7 +332,8 @@ export default function Settings() {
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!userFormData.name || !userFormData.email || (!editingUser && !userFormData.password)) {
+    // Validação: nome sempre obrigatório, email e senha apenas para novos usuários
+    if (!userFormData.name || (!editingUser && (!userFormData.email || !userFormData.password))) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
