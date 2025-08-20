@@ -373,7 +373,16 @@ export default function Settings() {
         });
 
         if (error) {
-          // The edge function returned an error
+          console.error('Edge function error:', error);
+          console.error('Edge function data:', data);
+          
+          // Check if it's a status code error
+          if (error.message && error.message.includes('non-2xx status code')) {
+            // The edge function returned an error response
+            throw new Error(data?.error || 'Erro ao criar usuário - verifique se o email já não está em uso');
+          }
+          
+          // Other types of errors
           throw new Error(data?.error || error.message || 'Erro ao criar usuário');
         }
 
