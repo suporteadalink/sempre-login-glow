@@ -35,6 +35,7 @@ export default function Settings() {
   const [users, setUsers] = useState<User[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ role: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     user_id: '',
@@ -46,9 +47,28 @@ export default function Settings() {
   const { toast } = useToast();
 
   useEffect(() => {
+    fetchUserProfile();
     fetchUsers();
     fetchGoals();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar perfil do usuário:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -218,208 +238,210 @@ export default function Settings() {
         </p>
       </div>
 
-      <Card className="shadow-soft">
-        <CardHeader>
-          <CardTitle className="text-crm-blue flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Gerenciamento de Metas
-          </CardTitle>
-          <CardDescription>
-            Defina e acompanhe as metas dos vendedores
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Formulário para Nova Meta */}
-          <div className="border rounded-lg p-4 bg-crm-gray-light/20">
-            <h3 className="text-lg font-semibold mb-4 text-crm-navy">
-              {editingGoal ? 'Editar Meta' : 'Definir Nova Meta'}
-            </h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome da Meta</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Meta Mensal Q1"
-                  required
-                />
-              </div>
+      {userProfile && userProfile.role === 'admin' && (
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-crm-blue flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Gerenciamento de Metas
+            </CardTitle>
+            <CardDescription>
+              Defina e acompanhe as metas dos vendedores
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Formulário para Nova Meta */}
+            <div className="border rounded-lg p-4 bg-crm-gray-light/20">
+              <h3 className="text-lg font-semibold mb-4 text-crm-navy">
+                {editingGoal ? 'Editar Meta' : 'Definir Nova Meta'}
+              </h3>
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome da Meta</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ex: Meta Mensal Q1"
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="user_id">Vendedor</Label>
-                <Select
-                  value={formData.user_id}
-                  onValueChange={(value) => setFormData({ ...formData, user_id: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um vendedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="user_id">Vendedor</Label>
+                  <Select
+                    value={formData.user_id}
+                    onValueChange={(value) => setFormData({ ...formData, user_id: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um vendedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="target_value">Valor da Meta (R$)</Label>
-                <Input
-                  id="target_value"
-                  type="number"
-                  step="0.01"
-                  value={formData.target_value}
-                  onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
-                  placeholder="0,00"
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="target_value">Valor da Meta (R$)</Label>
+                  <Input
+                    id="target_value"
+                    type="number"
+                    step="0.01"
+                    value={formData.target_value}
+                    onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
+                    placeholder="0,00"
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label>Data de Início</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.start_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.start_date ? (
-                        format(formData.start_date, "dd/MM/yyyy", { locale: ptBR })
-                      ) : (
-                        <span>Selecione uma data</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.start_date}
-                      onSelect={(date) => setFormData({ ...formData, start_date: date })}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                <div className="space-y-2">
+                  <Label>Data de Início</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.start_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.start_date ? (
+                          format(formData.start_date, "dd/MM/yyyy", { locale: ptBR })
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.start_date}
+                        onSelect={(date) => setFormData({ ...formData, start_date: date })}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="space-y-2">
-                <Label>Data de Término</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.end_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.end_date ? (
-                        format(formData.end_date, "dd/MM/yyyy", { locale: ptBR })
-                      ) : (
-                        <span>Selecione uma data</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.end_date}
-                      onSelect={(date) => setFormData({ ...formData, end_date: date })}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                <div className="space-y-2">
+                  <Label>Data de Término</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.end_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.end_date ? (
+                          format(formData.end_date, "dd/MM/yyyy", { locale: ptBR })
+                        ) : (
+                          <span>Selecione uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.end_date}
+                        onSelect={(date) => setFormData({ ...formData, end_date: date })}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="md:col-span-2 lg:col-span-5 flex gap-2 pt-4">
-                <Button type="submit" disabled={loading} className="bg-gradient-primary">
-                  {loading ? 'Salvando...' : editingGoal ? 'Atualizar Meta' : 'Criar Meta'}
-                </Button>
-                {editingGoal && (
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancelar
+                <div className="md:col-span-2 lg:col-span-5 flex gap-2 pt-4">
+                  <Button type="submit" disabled={loading} className="bg-gradient-primary">
+                    {loading ? 'Salvando...' : editingGoal ? 'Atualizar Meta' : 'Criar Meta'}
                   </Button>
-                )}
-              </div>
-            </form>
-          </div>
+                  {editingGoal && (
+                    <Button type="button" variant="outline" onClick={resetForm}>
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </div>
 
-          {/* Tabela de Metas Atuais */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-crm-navy">Metas Atuais</h3>
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome da Meta</TableHead>
-                    <TableHead>Vendedor</TableHead>
-                    <TableHead>Valor da Meta</TableHead>
-                    <TableHead>Data de Início</TableHead>
-                    <TableHead>Data de Término</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {goals.length === 0 ? (
+            {/* Tabela de Metas Atuais */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-crm-navy">Metas Atuais</h3>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        Nenhuma meta cadastrada
-                      </TableCell>
+                      <TableHead>Nome da Meta</TableHead>
+                      <TableHead>Vendedor</TableHead>
+                      <TableHead>Valor da Meta</TableHead>
+                      <TableHead>Data de Início</TableHead>
+                      <TableHead>Data de Término</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  ) : (
-                    goals.map((goal) => (
-                      <TableRow key={goal.id}>
-                        <TableCell className="font-medium">{goal.name}</TableCell>
-                        <TableCell>{goal.users?.name || 'N/A'}</TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          }).format(goal.target_value)}
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(goal.start_date), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(goal.end_date), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(goal)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(goal.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {goals.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          Nenhuma meta cadastrada
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      goals.map((goal) => (
+                        <TableRow key={goal.id}>
+                          <TableCell className="font-medium">{goal.name}</TableCell>
+                          <TableCell>{goal.users?.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL'
+                            }).format(goal.target_value)}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(goal.start_date), "dd/MM/yyyy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(goal.end_date), "dd/MM/yyyy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEdit(goal)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDelete(goal.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
