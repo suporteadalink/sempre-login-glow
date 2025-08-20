@@ -169,9 +169,9 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
         priority: values.priority || null,
         type: values.type || null,
         status: values.status,
-        project_id: values.project_id && values.project_id !== "" ? parseInt(values.project_id) : null,
-        company_id: values.company_id && values.company_id !== "" ? parseInt(values.company_id) : null,
-        contact_id: values.contact_id && values.contact_id !== "" ? parseInt(values.contact_id) : null,
+        project_id: values.project_id && values.project_id !== "" && values.project_id !== "none" ? parseInt(values.project_id) : null,
+        company_id: values.company_id && values.company_id !== "" && values.company_id !== "none" ? parseInt(values.company_id) : null,
+        contact_id: values.contact_id && values.contact_id !== "" && values.contact_id !== "none" ? parseInt(values.contact_id) : null,
         responsible_id: user.id,
       };
 
@@ -391,7 +391,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
+                          <SelectItem value="none">Nenhum</SelectItem>
                           {projects.map((project) => (
                             <SelectItem key={project.id} value={project.id.toString()}>
                               {project.name}
@@ -417,7 +417,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhuma</SelectItem>
+                          <SelectItem value="none">Nenhuma</SelectItem>
                           {companies.map((company) => (
                             <SelectItem key={company.id} value={company.id.toString()}>
                               {company.name}
@@ -443,7 +443,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
+                          <SelectItem value="none">Nenhum</SelectItem>
                           {contacts.map((contact) => (
                             <SelectItem key={contact.id} value={contact.id.toString()}>
                               {contact.name}
