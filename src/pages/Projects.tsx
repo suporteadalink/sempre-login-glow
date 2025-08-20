@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
 interface Project {
   id: number;
@@ -22,6 +23,8 @@ interface Project {
   manager_id: string;
   company_id: number;
   created_at: string;
+  company_name?: string;
+  manager_name?: string;
 }
 
 const Projects = () => {
@@ -48,7 +51,11 @@ const Projects = () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select(`
+          *,
+          companies!projects_company_id_fkey(name),
+          users!projects_manager_id_fkey(name)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -58,7 +65,12 @@ const Projects = () => {
           variant: "destructive",
         });
       } else {
-        setProjects(data || []);
+        const projectsWithJoins = data?.map(project => ({
+          ...project,
+          company_name: project.companies?.name || "-",
+          manager_name: project.users?.name || "-"
+        })) || [];
+        setProjects(projectsWithJoins);
       }
     } catch (error) {
       toast({
@@ -73,19 +85,56 @@ const Projects = () => {
 
   const getStatusVariant = (status: string) => {
     switch (status?.toLowerCase()) {
-      case "ativo":
+      case "proposta":
+        return "default"; // Blue
       case "em andamento":
-        return "default";
+      case "ativo":
+        return "secondary"; // Yellow/Orange
       case "concluído":
       case "finalizado":
-        return "secondary";
+        return "outline"; // Green - will be customized
       case "pausado":
         return "outline";
       case "cancelado":
-        return "destructive";
+        return "destructive"; // Red
       default:
         return "outline";
     }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "proposta":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+      case "em andamento":
+      case "ativo":
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+      case "concluído":
+      case "finalizado":
+        return "bg-green-100 text-green-800 hover:bg-green-200";
+      case "pausado":
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+      case "cancelado":
+        return "bg-red-100 text-red-800 hover:bg-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+    }
+  };
+
+  const handleEdit = (project: Project) => {
+    // TODO: Implement edit functionality
+    toast({
+      title: "Editar Projeto",
+      description: `Funcionalidade de edição para ${project.title} será implementada em breve.`,
+    });
+  };
+
+  const handleDelete = async (project: Project) => {
+    // TODO: Implement delete functionality with confirmation
+    toast({
+      title: "Excluir Projeto",
+      description: `Funcionalidade de exclusão para ${project.title} será implementada em breve.`,
+    });
   };
 
   const formatCurrency = (value: number) => {
@@ -154,7 +203,13 @@ const Projects = () => {
                       Código
                     </TableHead>
                     <TableHead className="font-semibold">
-                      Título
+                      Projeto
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Cliente
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Gerente
                     </TableHead>
                     <TableHead className="font-semibold">
                       Orçamento
@@ -162,13 +217,16 @@ const Projects = () => {
                     <TableHead className="font-semibold">
                       Status
                     </TableHead>
+                    <TableHead className="font-semibold w-12">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {projects.map((project) => (
                     <TableRow
                       key={project.id}
-                      className="hover:bg-muted/50 transition-colors cursor-pointer"
+                      className="hover:bg-muted/50 transition-colors"
                     >
                       <TableCell className="font-medium">
                         {project.project_code || "-"}
@@ -183,16 +241,50 @@ const Projects = () => {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {project.company_name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {project.manager_name}
+                      </TableCell>
+                      <TableCell className="font-medium">
                         {formatCurrency(project.budget)}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={getStatusVariant(project.status)}
-                          className="font-medium"
+                          className={`font-medium ${getStatusColor(project.status)}`}
                         >
                           {project.status || "Não definido"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                            >
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(project)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(project)}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
