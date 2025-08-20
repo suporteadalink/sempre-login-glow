@@ -1,8 +1,23 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { LogOut, Users, BarChart3, Settings, FolderOpen } from "lucide-react";
+import { 
+  LogOut, 
+  DollarSign, 
+  Users, 
+  FolderOpen, 
+  Target,
+  UserPlus,
+  Briefcase,
+  Calendar,
+  FileText,
+  CheckCircle,
+  Clock,
+  AlertCircle
+} from "lucide-react";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -21,10 +36,10 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-background">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-crm-gray">Carregando...</p>
+          <p className="text-muted-foreground">Carregando...</p>
         </div>
       </div>
     );
@@ -34,10 +49,90 @@ const Index = () => {
     return null;
   }
 
+  const metrics = [
+    {
+      title: "Receita Total",
+      value: "R$ 847.500",
+      icon: DollarSign,
+      iconColor: "bg-green-500",
+      description: "Total arrecadado este mês"
+    },
+    {
+      title: "Leads Ativos",
+      value: "127",
+      icon: Users,
+      iconColor: "bg-blue-500",
+      description: "Leads em potencial"
+    },
+    {
+      title: "Projetos Ativos",
+      value: "18",
+      icon: FolderOpen,
+      iconColor: "bg-purple-500",
+      description: "Projetos em andamento"
+    },
+    {
+      title: "Taxa de Conversão",
+      value: "24%",
+      icon: Target,
+      iconColor: "bg-yellow-500",
+      description: "Leads convertidos em vendas"
+    }
+  ];
+
+  const quickActions = [
+    { title: "Novo Lead", icon: UserPlus },
+    { title: "Nova Oportunidade", icon: Briefcase },
+    { title: "Agendar Reunião", icon: Calendar },
+    { title: "Enviar Proposta", icon: FileText }
+  ];
+
+  const recentActivities = [
+    {
+      title: "Nova oportunidade aprovada",
+      description: "2 horas atrás",
+      icon: CheckCircle,
+      iconColor: "text-green-500"
+    },
+    {
+      title: "Cliente cadastrado no sistema",
+      description: "4 horas atrás",
+      icon: Users,
+      iconColor: "text-blue-500"
+    },
+    {
+      title: "Reunião agendada para amanhã",
+      description: "6 horas atrás",
+      icon: Calendar,
+      iconColor: "text-yellow-500"
+    }
+  ];
+
+  const pendingTasks = [
+    {
+      title: "Revisar proposta comercial",
+      status: "Urgente",
+      statusColor: "destructive",
+      icon: AlertCircle
+    },
+    {
+      title: "Ligar para cliente em potencial",
+      status: "Pendente",
+      statusColor: "secondary",
+      icon: Clock
+    },
+    {
+      title: "Preparar apresentação",
+      status: "Agendado",
+      statusColor: "default",
+      icon: FileText
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b shadow-soft">
+      <header className="bg-card border-b shadow-soft">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -46,14 +141,14 @@ const Index = () => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-crm-gray">
+              <span className="text-sm text-muted-foreground">
                 Olá, {user.email}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSignOut}
-                className="transition-smooth hover:shadow-medium"
+                className="transition-smooth"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
@@ -65,88 +160,100 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-crm-navy mb-2">
-            Dashboard
-          </h2>
-          <p className="text-crm-gray">
-            Bem-vindo ao seu painel de controle
-          </p>
+        {/* Metrics Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {metrics.map((metric, index) => (
+            <Card key={index} className="transition-all hover:shadow-medium">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-3 rounded-lg ${metric.iconColor}`}>
+                    <metric.icon className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                  {metric.title}
+                </h3>
+                <p className="text-3xl font-bold text-foreground mb-2">
+                  {metric.value}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {metric.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Quick Actions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-gradient-primary rounded-lg">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <h3 className="text-lg font-semibold text-crm-navy mb-2">
-              Clientes
-            </h3>
-            <p className="text-crm-gray text-sm mb-4">
-              Gerencie seus clientes e contatos
-            </p>
-            <Button variant="outline" className="w-full transition-smooth">
-              Ver Clientes
-            </Button>
+        {/* Quick Actions Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-foreground mb-4">
+            Ações Rápidas
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quickActions.map((action, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                className="h-16 justify-start space-x-3 text-left transition-all hover:shadow-medium"
+              >
+                <action.icon className="h-5 w-5" />
+                <span>{action.title}</span>
+              </Button>
+            ))}
           </div>
+        </div>
 
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-gradient-primary rounded-lg">
-                <FolderOpen className="h-6 w-6 text-white" />
+        {/* Activities and Tasks Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Activities */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Atividades Recentes
+              </h3>
+              <div className="space-y-4">
+                {recentActivities.map((activity, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className={`p-2 rounded-lg bg-muted ${activity.iconColor}`}>
+                      <activity.icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {activity.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <h3 className="text-lg font-semibold text-crm-navy mb-2">
-              Projetos
-            </h3>
-            <p className="text-crm-gray text-sm mb-4">
-              Gerencie seus projetos ativos
-            </p>
-            <Button 
-              variant="outline" 
-              className="w-full transition-smooth"
-              onClick={() => navigate("/projetos")}
-            >
-              Ver Projetos
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-gradient-primary rounded-lg">
-                <BarChart3 className="h-6 w-6 text-white" />
+          {/* Pending Tasks */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Tarefas Pendentes
+              </h3>
+              <div className="space-y-4">
+                {pendingTasks.map((task, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <task.icon className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">
+                        {task.title}
+                      </p>
+                    </div>
+                    <Badge variant={task.statusColor as any}>
+                      {task.status}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-            </div>
-            <h3 className="text-lg font-semibold text-crm-navy mb-2">
-              Relatórios
-            </h3>
-            <p className="text-crm-gray text-sm mb-4">
-              Analise métricas e performance
-            </p>
-            <Button variant="outline" className="w-full transition-smooth">
-              Ver Relatórios
-            </Button>
-          </div>
-
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-gradient-primary rounded-lg">
-                <Settings className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <h3 className="text-lg font-semibold text-crm-navy mb-2">
-              Configurações
-            </h3>
-            <p className="text-crm-gray text-sm mb-4">
-              Personalize seu sistema
-            </p>
-            <Button variant="outline" className="w-full transition-smooth">
-              Configurar
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
