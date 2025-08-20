@@ -438,6 +438,7 @@ export type Database = {
           created_at: string | null
           id: number
           owner_id: string
+          pdf_url: string | null
           status: string | null
           title: string
           value: number | null
@@ -447,6 +448,7 @@ export type Database = {
           created_at?: string | null
           id?: never
           owner_id: string
+          pdf_url?: string | null
           status?: string | null
           title: string
           value?: number | null
@@ -456,6 +458,7 @@ export type Database = {
           created_at?: string | null
           id?: never
           owner_id?: string
+          pdf_url?: string | null
           status?: string | null
           title?: string
           value?: number | null
