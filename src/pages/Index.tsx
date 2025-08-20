@@ -97,11 +97,9 @@ const Index = () => {
   async function fetchRecentActivities() {
     try {
       setLoadingActivities(true);
+      // Using rpc to query activity_log since it's not in types yet
       const { data: activities, error } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .rpc('get_recent_activities');
 
       if (error) {
         console.error('Erro ao buscar atividades recentes:', error);
