@@ -121,18 +121,25 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           title: "Sucesso",
           description: "Empresa atualizada com sucesso.",
         });
-      } else {
-        const { error } = await supabase
-          .from('companies')
-          .insert(submitData);
+} else {
+  // 1. PEGUE O USUÁRIO LOGADO PRIMEIRO
+  const { data: { user } } = await supabase.auth.getUser();
 
-        if (error) throw error;
+  // 2. ADICIONE O user.id AOS DADOS QUE SERÃO SALVOS
+  const { error } = await supabase
+    .from('companies')
+    .insert({
+      ...submitData, // Pega todos os dados do formulário (nome, cnpj, etc.)
+      owner_id: user.id // E ADICIONA O ID DO USUÁRIO COMO O DONO!
+    });
 
-        toast({
-          title: "Sucesso",
-          description: "Empresa criada com sucesso.",
-        });
-      }
+  if (error) throw error;
+
+  toast({
+    title: "Sucesso",
+    description: "Empresa criada com sucesso.",
+  });
+}
 
       onSuccess();
     } catch (error) {
