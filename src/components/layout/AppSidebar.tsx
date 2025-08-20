@@ -8,6 +8,7 @@ import {
   Plus,
   FileText,
   CheckSquare,
+  Users,
   LogOut
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ const navigationItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
   { title: "Pipeline", url: "/pipeline", icon: GitBranch },
   { title: "Empresas", url: "/empresas", icon: Building2 },
+  { title: "Contatos", url: "/contatos", icon: Users },
   { title: "Projetos", url: "/projetos", icon: FolderOpen },
   { title: "Adições", url: "/adicoes", icon: Plus },
   { title: "Propostas", url: "/propostas", icon: FileText },
