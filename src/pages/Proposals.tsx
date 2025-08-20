@@ -258,13 +258,18 @@ export default function Proposals() {
             {selectedProposal?.pdf_url && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Documento PDF</h3>
-                <iframe
-                  src={selectedProposal.pdf_url}
-                  width="100%"
-                  height="700px"
-                  className="border rounded-lg"
-                  title="Visualizador de PDF da Proposta"
-                />
+                {(() => {
+                  const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(selectedProposal.pdf_url)}&embedded=true`;
+                  return (
+                    <iframe
+                      src={googleViewerUrl}
+                      width="100%"
+                      height="700px"
+                      className="border rounded-lg"
+                      title="Visualizador de PDF da Proposta"
+                    />
+                  );
+                })()}
               </div>
             )}
             
