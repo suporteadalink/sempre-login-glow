@@ -549,6 +549,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_my_goal_progress: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_recent_activities: {
         Args: Record<PropertyKey, never>
         Returns: Json
