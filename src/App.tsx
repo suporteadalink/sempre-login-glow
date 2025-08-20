@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import Pipeline from "./pages/Pipeline";
 import Projects from "./pages/Projects";
 import Companies from "./pages/Companies";
 import Contacts from "./pages/Contacts";
@@ -27,6 +28,7 @@ const App = () => (
               <AppLayout>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/pipeline" element={<Pipeline />} />
                   <Route path="/projetos" element={<Projects />} />
                   <Route path="/empresas" element={<Companies />} />
                   <Route path="/contatos" element={<Contacts />} />
