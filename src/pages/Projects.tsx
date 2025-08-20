@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 interface Project {
   id: number;
@@ -98,135 +98,110 @@ const Projects = () => {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-background">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-crm-gray">Carregando...</p>
+          <p className="text-muted-foreground">Carregando...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-background">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b shadow-soft">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/")}
-                className="transition-smooth"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Sempre CRM
-              </h1>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold text-foreground mb-2">
+          Lista de Projetos
+        </h2>
+        <p className="text-muted-foreground">
+          Gerencie todos os seus projetos em um só lugar
+        </p>
+      </div>
+
+      <Card className="shadow-medium">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+          <CardTitle className="text-xl font-semibold text-foreground">
+            Projetos
+          </CardTitle>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Novo Projeto
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Carregando projetos...</span>
             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-crm-navy mb-2">
-            Lista de Projetos
-          </h2>
-          <p className="text-crm-gray">
-            Gerencie todos os seus projetos em um só lugar
-          </p>
-        </div>
-
-        <Card className="shadow-glow border-0 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-            <CardTitle className="text-xl font-semibold text-crm-navy">
-              Projetos
-            </CardTitle>
-            <Button
-              className="bg-gradient-primary hover:bg-gradient-hero text-white font-semibold transition-smooth shadow-medium hover:shadow-glow"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Novo Projeto
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2 text-crm-gray">Carregando projetos...</span>
-              </div>
-            ) : projects.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-crm-gray text-lg mb-4">
-                  Nenhum projeto encontrado
-                </p>
-                <p className="text-crm-gray text-sm">
-                  Comece criando seu primeiro projeto
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-crm-gray-light hover:bg-crm-gray-light">
-                      <TableHead className="font-semibold text-crm-navy">
-                        Código
-                      </TableHead>
-                      <TableHead className="font-semibold text-crm-navy">
-                        Título
-                      </TableHead>
-                      <TableHead className="font-semibold text-crm-navy">
-                        Orçamento
-                      </TableHead>
-                      <TableHead className="font-semibold text-crm-navy">
-                        Status
-                      </TableHead>
+          ) : projects.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg mb-4">
+                Nenhum projeto encontrado
+              </p>
+              <p className="text-muted-foreground text-sm">
+                Comece criando seu primeiro projeto
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted hover:bg-muted">
+                    <TableHead className="font-semibold">
+                      Código
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Título
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Orçamento
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Status
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projects.map((project) => (
+                    <TableRow
+                      key={project.id}
+                      className="hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <TableCell className="font-medium">
+                        {project.project_code || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{project.title}</p>
+                          {project.description && (
+                            <p className="text-sm text-muted-foreground truncate max-w-xs">
+                              {project.description}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(project.budget)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={getStatusVariant(project.status)}
+                          className="font-medium"
+                        >
+                          {project.status || "Não definido"}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {projects.map((project) => (
-                      <TableRow
-                        key={project.id}
-                        className="hover:bg-crm-gray-light/50 transition-smooth cursor-pointer"
-                      >
-                        <TableCell className="font-medium text-crm-navy">
-                          {project.project_code || "-"}
-                        </TableCell>
-                        <TableCell className="text-crm-navy">
-                          <div>
-                            <p className="font-medium">{project.title}</p>
-                            {project.description && (
-                              <p className="text-sm text-crm-gray truncate max-w-xs">
-                                {project.description}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-crm-navy">
-                          {formatCurrency(project.budget)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={getStatusVariant(project.status)}
-                            className="font-medium"
-                          >
-                            {project.status || "Não definido"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

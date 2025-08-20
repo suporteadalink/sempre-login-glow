@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { 
-  LogOut, 
   DollarSign, 
   Users, 
   FolderOpen, 
@@ -20,7 +19,7 @@ import {
 } from "lucide-react";
 
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,14 +28,9 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login");
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Carregando...</p>
@@ -130,132 +124,102 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b shadow-soft">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Sempre CRM
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground">
-                Olá, {user.email}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSignOut}
-                className="transition-smooth"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Metrics Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {metrics.map((metric, index) => (
-            <Card key={index} className="transition-all hover:shadow-medium">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-lg ${metric.iconColor}`}>
-                    <metric.icon className="h-6 w-6 text-white" />
-                  </div>
+    <div className="space-y-8">
+      {/* Metrics Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {metrics.map((metric, index) => (
+          <Card key={index} className="transition-all hover:shadow-medium">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 rounded-lg ${metric.iconColor}`}>
+                  <metric.icon className="h-6 w-6 text-white" />
                 </div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                  {metric.title}
-                </h3>
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  {metric.value}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {metric.description}
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                {metric.title}
+              </h3>
+              <p className="text-3xl font-bold text-foreground mb-2">
+                {metric.value}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {metric.description}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Quick Actions Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-foreground mb-4">
+          Ações Rápidas
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickActions.map((action, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              className="h-16 justify-start space-x-3 text-left transition-all hover:shadow-medium"
+            >
+              <action.icon className="h-5 w-5" />
+              <span>{action.title}</span>
+            </Button>
           ))}
         </div>
+      </div>
 
-        {/* Quick Actions Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-foreground mb-4">
-            Ações Rápidas
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="h-16 justify-start space-x-3 text-left transition-all hover:shadow-medium"
-              >
-                <action.icon className="h-5 w-5" />
-                <span>{action.title}</span>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Activities and Tasks Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activities */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
-                Atividades Recentes
-              </h3>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-lg bg-muted ${activity.iconColor}`}>
-                      <activity.icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.description}
-                      </p>
-                    </div>
+      {/* Activities and Tasks Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Activities */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Atividades Recentes
+            </h3>
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <div className={`p-2 rounded-lg bg-muted ${activity.iconColor}`}>
+                    <activity.icon className="h-4 w-4" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pending Tasks */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
-                Tarefas Pendentes
-              </h3>
-              <div className="space-y-4">
-                {pendingTasks.map((task, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <task.icon className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm font-medium text-foreground">
-                        {task.title}
-                      </p>
-                    </div>
-                    <Badge variant={task.statusColor as any}>
-                      {task.status}
-                    </Badge>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {activity.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.description}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Tasks */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Tarefas Pendentes
+            </h3>
+            <div className="space-y-4">
+              {pendingTasks.map((task, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <task.icon className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">
+                      {task.title}
+                    </p>
+                  </div>
+                  <Badge variant={task.statusColor as any}>
+                    {task.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
