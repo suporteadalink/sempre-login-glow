@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { TaskForm } from "@/components/tasks/TaskForm";
 
 interface Task {
   id: number;
@@ -29,6 +30,8 @@ const Tasks = () => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -119,10 +122,8 @@ const Tasks = () => {
   };
 
   const handleEdit = (task: Task) => {
-    toast({
-      title: "Editar Tarefa",
-      description: `Funcionalidade de edição para ${task.name} será implementada em breve.`,
-    });
+    setSelectedTask(task);
+    setIsFormOpen(true);
   };
 
   const handleComplete = async (task: Task) => {
@@ -155,10 +156,17 @@ const Tasks = () => {
   };
 
   const handleNewTask = () => {
-    toast({
-      title: "Adicionar Nova Tarefa",
-      description: "Funcionalidade de criação de tarefas será implementada em breve.",
-    });
+    setSelectedTask(null);
+    setIsFormOpen(true);
+  };
+
+  const handleFormClose = () => {
+    setIsFormOpen(false);
+    setSelectedTask(null);
+  };
+
+  const handleFormSuccess = () => {
+    fetchTasks();
   };
 
   const formatDueDate = (dateString: string | null) => {
@@ -314,6 +322,13 @@ const Tasks = () => {
           )}
         </CardContent>
       </Card>
+
+      <TaskForm
+        isOpen={isFormOpen}
+        onClose={handleFormClose}
+        task={selectedTask}
+        onSuccess={handleFormSuccess}
+      />
     </div>
   );
 };
