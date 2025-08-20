@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Pencil, Trash2, Plus, Users, Settings as SettingsIcon } from "lucide-react";
+import { CalendarIcon, Pencil, Trash2, Plus, Users, Settings as SettingsIcon, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -42,12 +42,27 @@ interface PipelineStage {
   counts_in_conversion: boolean;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+}
+
 export default function Settings() {
   const [users, setUsers] = useState<User[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<{ role: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  
+  // Profile form data
+  const [profileFormData, setProfileFormData] = useState({
+    name: '',
+    phone: ''
+  });
   
   // Goals form data
   const [formData, setFormData] = useState({
@@ -82,6 +97,7 @@ export default function Settings() {
 
   useEffect(() => {
     fetchUserProfile();
+    fetchCurrentUserData();
     fetchUsers();
     fetchGoals();
     fetchPipelineStages();
@@ -102,6 +118,37 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Erro ao buscar perfil do usuário:', error);
+    }
+  };
+
+  const fetchCurrentUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('id, name, phone, role')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        
+        const userData: UserProfile = {
+          id: user.id,
+          name: profile?.name || '',
+          email: user.email || '',
+          phone: profile?.phone || '',
+          role: profile?.role || 'vendedor'
+        };
+        
+        setCurrentUser(userData);
+        setProfileFormData({
+          name: userData.name,
+          phone: userData.phone || ''
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados do usuário atual:', error);
     }
   };
 
@@ -528,6 +575,53 @@ export default function Settings() {
     setEditingStage(null);
   };
 
+  // Profile management functions
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!profileFormData.name) {
+      toast({
+        title: "Erro",
+        description: "O nome é obrigatório",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            name: profileFormData.name,
+            phone: profileFormData.phone
+          })
+          .eq('id', user.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: "Perfil atualizado com sucesso"
+        });
+        
+        // Refresh current user data
+        fetchCurrentUserData();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar perfil",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -539,6 +633,68 @@ export default function Settings() {
         </p>
       </div>
 
+      {/* Seção Meu Perfil - Para usuários não-admin */}
+      {userProfile && userProfile.role !== 'admin' && currentUser && (
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-crm-blue flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Meu Perfil
+            </CardTitle>
+            <CardDescription>
+              Visualize e edite suas informações pessoais
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleProfileSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="profile_email">Email</Label>
+                  <Input
+                    id="profile_email"
+                    type="email"
+                    value={currentUser.email}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    O email não pode ser alterado
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="profile_name">Nome</Label>
+                  <Input
+                    id="profile_name"
+                    value={profileFormData.name}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, name: e.target.value })}
+                    placeholder="Seu nome completo"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="profile_phone">Telefone</Label>
+                  <Input
+                    id="profile_phone"
+                    value={profileFormData.phone}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, phone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-start">
+                <Button type="submit" disabled={loading} className="bg-gradient-primary">
+                  {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Gerenciamento de Metas - Apenas para admin */}
       {userProfile && userProfile.role === 'admin' && (
         <Card className="shadow-soft">
           <CardHeader>
