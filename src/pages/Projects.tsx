@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { ProjectForm } from "@/components/projects/ProjectForm";
 
 interface Project {
   id: number;
@@ -33,6 +34,8 @@ const Projects = () => {
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -122,11 +125,8 @@ const Projects = () => {
   };
 
   const handleEdit = (project: Project) => {
-    // TODO: Implement edit functionality
-    toast({
-      title: "Editar Projeto",
-      description: `Funcionalidade de edição para ${project.title} será implementada em breve.`,
-    });
+    setSelectedProject(project);
+    setIsFormOpen(true);
   };
 
   const handleDelete = async (project: Project) => {
@@ -135,6 +135,20 @@ const Projects = () => {
       title: "Excluir Projeto",
       description: `Funcionalidade de exclusão para ${project.title} será implementada em breve.`,
     });
+  };
+
+  const handleNewProject = () => {
+    setSelectedProject(null);
+    setIsFormOpen(true);
+  };
+
+  const handleFormClose = () => {
+    setIsFormOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleFormSuccess = () => {
+    fetchProjects();
   };
 
   const formatCurrency = (value: number) => {
@@ -173,6 +187,7 @@ const Projects = () => {
             Projetos
           </CardTitle>
           <Button
+            onClick={handleNewProject}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -294,6 +309,13 @@ const Projects = () => {
           )}
         </CardContent>
       </Card>
+
+      <ProjectForm
+        isOpen={isFormOpen}
+        onClose={handleFormClose}
+        project={selectedProject}
+        onSuccess={handleFormSuccess}
+      />
     </div>
   );
 };
