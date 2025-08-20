@@ -3,8 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
+import { CompanyForm } from "@/components/companies/CompanyForm";
+import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
+import { TaskForm } from "@/components/tasks/TaskForm";
 import { 
   DollarSign, 
   Users, 
@@ -26,6 +30,12 @@ const Index = () => {
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
+  
+  // Modal states
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskType, setTaskType] = useState<string>("");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -80,6 +90,35 @@ const Index = () => {
       setLoadingTasks(false);
     }
   }
+
+  // Modal handlers
+  const handleModalSuccess = () => {
+    // Refresh data when forms are successfully submitted
+    loadDashboardData();
+    fetchPendingTasks();
+    setIsCompanyModalOpen(false);
+    setIsOpportunityModalOpen(false);
+    setIsTaskModalOpen(false);
+  };
+
+  const handleQuickAction = (actionTitle: string) => {
+    switch (actionTitle) {
+      case "Novo Lead":
+        setIsCompanyModalOpen(true);
+        break;
+      case "Nova Oportunidade":
+        setIsOpportunityModalOpen(true);
+        break;
+      case "Agendar Reunião":
+        setTaskType("Reunião");
+        setIsTaskModalOpen(true);
+        break;
+      case "Enviar Proposta":
+        setTaskType("Proposta");
+        setIsTaskModalOpen(true);
+        break;
+    }
+  };
 
   if (loading) {
     return (
@@ -193,6 +232,7 @@ const Index = () => {
               key={index}
               variant="outline"
               className="h-16 justify-start space-x-3 text-left transition-all hover:shadow-medium"
+              onClick={() => handleQuickAction(action.title)}
             >
               <action.icon className="h-5 w-5" />
               <span>{action.title}</span>
@@ -275,6 +315,37 @@ const Index = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <Dialog open={isCompanyModalOpen} onOpenChange={setIsCompanyModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Novo Lead</DialogTitle>
+          </DialogHeader>
+          <CompanyForm 
+            onSuccess={handleModalSuccess}
+            onCancel={() => setIsCompanyModalOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isOpportunityModalOpen} onOpenChange={setIsOpportunityModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nova Oportunidade</DialogTitle>
+          </DialogHeader>
+          <OpportunityForm 
+            onSuccess={handleModalSuccess}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <TaskForm
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        task={taskType ? { type: taskType } : undefined}
+      />
     </div>
   );
 };
