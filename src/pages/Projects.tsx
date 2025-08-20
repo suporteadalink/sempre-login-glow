@@ -143,6 +143,30 @@ const Projects = () => {
 
     try {
       setIsDeleting(true);
+      
+      // First, check if there are tasks related to this project
+      const { data: relatedTasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("project_id", projectToDelete.id);
+
+      if (tasksError) {
+        throw tasksError;
+      }
+
+      // If there are related tasks, delete them first
+      if (relatedTasks && relatedTasks.length > 0) {
+        const { error: deleteTasksError } = await supabase
+          .from("tasks")
+          .delete()
+          .eq("project_id", projectToDelete.id);
+
+        if (deleteTasksError) {
+          throw deleteTasksError;
+        }
+      }
+
+      // Now delete the project
       const { error } = await supabase
         .from("projects")
         .delete()
@@ -155,9 +179,13 @@ const Projects = () => {
           variant: "destructive",
         });
       } else {
+        const tasksMessage = relatedTasks && relatedTasks.length > 0 
+          ? ` e ${relatedTasks.length} tarefa(s) relacionada(s)` 
+          : '';
+        
         toast({
           title: "Projeto excluído",
-          description: `O projeto "${projectToDelete.title}" foi excluído com sucesso.`,
+          description: `O projeto "${projectToDelete.title}"${tasksMessage} foi excluído com sucesso.`,
         });
         fetchProjects();
       }
@@ -360,6 +388,9 @@ const Projects = () => {
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o projeto "{projectToDelete?.title}"?
+              <br />
+              <strong>Atenção:</strong> Todas as tarefas relacionadas a este projeto também serão excluídas.
+              <br />
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
