@@ -361,35 +361,26 @@ export default function Settings() {
           description: "Usuário atualizado com sucesso"
         });
       } else {
-        // Create new user with auth and profile
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: userFormData.email,
-          password: userFormData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
+        // Create new user using edge function
+        const { data, error } = await supabase.functions.invoke('create-user', {
+          body: {
+            email: userFormData.email,
+            password: userFormData.password,
+            name: userFormData.name,
+            role: userFormData.role,
+            phone: userFormData.phone
           }
         });
 
-        if (authError) throw authError;
-        
-        if (authData.user) {
-          // Insert into users table
-          const { error: profileError } = await supabase
-            .from('users')
-            .insert([{
-              id: authData.user.id,
-              name: userFormData.name,
-              phone: userFormData.phone,
-              role: userFormData.role,
-              status: 'Ativo'
-            }]);
-
-          if (profileError) throw profileError;
+        if (error) {
+          throw error;
         }
+
+        console.log(data);
         
         toast({
-          title: "Sucesso",
-          description: "Usuário criado com sucesso"
+          title: "Sucesso!",
+          description: "O novo usuário foi criado."
         });
       }
 
