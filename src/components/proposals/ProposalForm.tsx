@@ -80,39 +80,6 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
     fetchCompanies();
   }, []);
 
-  const uploadPDF = async (file: File): Promise<string | null> => {
-    try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('propostas-pdf')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data } = supabase.storage
-        .from('propostas-pdf')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading PDF:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível fazer upload do PDF.",
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const onSubmit = async (data: ProposalFormData) => {
     setLoading(true);
     try {
@@ -122,41 +89,85 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
         throw new Error('Usuário não autenticado');
       }
 
-      let pdfUrl = null;
+      let fileUrl = null;
+
+      // 1. VERIFICA SE UM ARQUIVO FOI ENVIADO
       if (data.pdf_file) {
-        pdfUrl = await uploadPDF(data.pdf_file);
-        if (!pdfUrl) {
-          throw new Error('Falha no upload do PDF');
+        setUploading(true);
+        
+        // Cria um nome de arquivo único para evitar conflitos
+        const fileName = `${user.id}-${Date.now()}.pdf`;
+
+        // 2. FAZ O UPLOAD DO ARQUIVO PARA O BUCKET
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('propostas-pdf')
+          .upload(fileName, data.pdf_file);
+
+        if (uploadError) {
+          console.error('Erro no upload do PDF:', uploadError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível fazer upload do PDF.",
+            variant: "destructive",
+          });
+          return;
         }
+
+        // 3. PEGA O LINK PÚBLICO DO ARQUIVO
+        const { data: urlData } = supabase.storage
+          .from('propostas-pdf')
+          .getPublicUrl(fileName);
+
+        fileUrl = urlData.publicUrl;
+        setUploading(false);
       }
 
+      // 4. PREPARA OS DADOS PARA SALVAR NO BANCO
       const proposalData = {
         title: data.title,
         company_id: parseInt(data.company_id),
         value: data.value || null,
         status: data.status || "Rascunho",
         owner_id: user.id,
-        pdf_url: pdfUrl,
+        pdf_url: fileUrl // Adiciona o link do PDF (ou null se não houver arquivo)
       };
 
       if (proposal) {
-        const { error } = await supabase
+        // 5. ATUALIZA OS DADOS NA TABELA 'proposals'
+        const { error: updateError } = await supabase
           .from('proposals' as any)
           .update(proposalData)
           .eq('id', proposal.id);
 
-        if (error) throw error;
+        if (updateError) {
+          console.error('Erro ao atualizar proposta:', updateError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível atualizar a proposta.",
+            variant: "destructive",
+          });
+          return;
+        }
 
         toast({
           title: "Sucesso",
           description: "Proposta atualizada com sucesso.",
         });
       } else {
-        const { error } = await supabase
+        // 5. SALVA OS DADOS NA TABELA 'proposals'
+        const { error: insertError } = await supabase
           .from('proposals' as any)
-          .insert([proposalData]);
+          .insert(proposalData);
 
-        if (error) throw error;
+        if (insertError) {
+          console.error('Erro ao salvar proposta:', insertError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível salvar a proposta.",
+            variant: "destructive",
+          });
+          return;
+        }
 
         toast({
           title: "Sucesso",
@@ -164,6 +175,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
         });
       }
 
+      // Sucesso! Feche o modal e atualize a lista.
       onSuccess();
     } catch (error) {
       console.error('Error saving proposal:', error);
@@ -174,6 +186,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
       });
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
