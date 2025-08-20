@@ -257,7 +257,11 @@ const Index = () => {
                         )}
                       </div>
                     </div>
-                    <Badge variant={task.priority === 'Alta' ? 'destructive' : task.priority === 'Média' ? 'default' : 'secondary'}>
+                    <Badge variant={
+                      task.priority === 'Alta' ? 'destructive' : 
+                      task.priority === 'Média' ? 'default' : 
+                      'secondary'
+                    }>
                       {task.priority || 'Normal'}
                     </Badge>
                   </div>
