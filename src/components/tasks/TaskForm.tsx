@@ -48,6 +48,7 @@ const formSchema = z.object({
   priority: z.string().optional(),
   type: z.string().optional(),
   status: z.string().min(1, "Status é obrigatório"),
+  responsible_id: z.string().min(1, "Responsável é obrigatório"),
   project_id: z.string().optional(),
   company_id: z.string().optional(),
   contact_id: z.string().optional(),
@@ -72,6 +73,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
   const [projects, setProjects] = useState<Option[]>([]);
   const [companies, setCompanies] = useState<Option[]>([]);
   const [contacts, setContacts] = useState<Option[]>([]);
+  const [users, setUsers] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -83,6 +85,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
       priority: "",
       type: "",
       status: "Pendente",
+      responsible_id: "",
       project_id: "",
       company_id: "",
       contact_id: "",
@@ -100,6 +103,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
           priority: task.priority || "",
           type: task.type || "",
           status: task.status || "Pendente",
+          responsible_id: task.responsible_id?.toString() || "",
           project_id: task.project_id?.toString() || "",
           company_id: task.company_id?.toString() || "",
           contact_id: task.contact_id?.toString() || "",
@@ -112,6 +116,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
           priority: "",
           type: "",
           status: "Pendente",
+          responsible_id: user?.id || "",
           project_id: "",
           company_id: "",
           contact_id: "",
@@ -142,9 +147,16 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
         .select("id, name")
         .order("name", { ascending: true });
 
+      // Fetch users
+      const { data: usersData } = await supabase
+        .from("users")
+        .select("id, name")
+        .order("name", { ascending: true });
+
       setProjects(projectsData?.map(p => ({ id: p.id, name: p.title })) || []);
       setCompanies(companiesData?.map(c => ({ id: c.id, name: c.name })) || []);
       setContacts(contactsData?.map(c => ({ id: c.id, name: c.name })) || []);
+      setUsers(usersData?.map(u => ({ id: u.id, name: u.name })) || []);
     } catch (error) {
       toast({
         title: "Erro",
@@ -172,7 +184,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
         project_id: values.project_id && values.project_id !== "" && values.project_id !== "none" ? parseInt(values.project_id) : null,
         company_id: values.company_id && values.company_id !== "" && values.company_id !== "none" ? parseInt(values.company_id) : null,
         contact_id: values.contact_id && values.contact_id !== "" && values.contact_id !== "none" ? parseInt(values.contact_id) : null,
-        responsible_id: user.id,
+        responsible_id: values.responsible_id,
       };
 
       let error;
@@ -376,6 +388,31 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="responsible_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Responsável *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um responsável" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-3 gap-4">
                 <FormField
