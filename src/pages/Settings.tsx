@@ -393,11 +393,22 @@ export default function Settings() {
       });
       setEditingUser(null);
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar usuário:', error);
+      
+      let errorMessage = "Erro ao salvar usuário";
+      
+      if (error?.message?.includes('email address has already been registered')) {
+        errorMessage = "Este email já está sendo usado por outro usuário";
+      } else if (error?.message?.includes('For security purposes')) {
+        errorMessage = "Aguarde alguns segundos antes de tentar novamente";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro",
-        description: "Erro ao salvar usuário",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
