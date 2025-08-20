@@ -597,6 +597,10 @@ export type Database = {
         Args: { company_id_param: number }
         Returns: boolean
       }
+      get_conversion_trend: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_dashboard_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json

@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyForm } from "@/components/companies/CompanyForm";
@@ -36,6 +38,9 @@ const Index = () => {
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [goalProgress, setGoalProgress] = useState<any>(null);
   const [loadingGoal, setLoadingGoal] = useState(true);
+  const [pipelineData, setPipelineData] = useState<any[]>([]);
+  const [conversionTrend, setConversionTrend] = useState<any[]>([]);
+  const [loadingCharts, setLoadingCharts] = useState(true);
   
   // Modal states
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -55,6 +60,7 @@ const Index = () => {
       fetchPendingTasks();
       fetchRecentActivities();
       fetchGoalProgress();
+      fetchChartsData();
     }
   }, [user]);
 
@@ -147,6 +153,40 @@ const Index = () => {
     }
   }
 
+  async function fetchChartsData() {
+    try {
+      setLoadingCharts(true);
+      
+      // Fetch pipeline distribution
+      // @ts-ignore - Function exists in database but not in types
+      const { data: pipelineData, error: pipelineError } = await supabase.rpc('get_pipeline_distribution');
+      
+      if (pipelineError) {
+        console.error('Erro ao buscar dados do pipeline:', pipelineError);
+        setPipelineData([]);
+      } else {
+        setPipelineData(Array.isArray(pipelineData) ? pipelineData : []);
+      }
+
+      // Fetch conversion trend
+      // @ts-ignore - Function exists in database but not in types
+      const { data: conversionData, error: conversionError } = await supabase.rpc('get_conversion_trend');
+      
+      if (conversionError) {
+        console.error('Erro ao buscar tendência de conversão:', conversionError);
+        setConversionTrend([]);
+      } else {
+        setConversionTrend(Array.isArray(conversionData) ? conversionData : []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados dos gráficos:', error);
+      setPipelineData([]);
+      setConversionTrend([]);
+    } finally {
+      setLoadingCharts(false);
+    }
+  }
+
   // Modal handlers
   const handleModalSuccess = () => {
     // Refresh data when forms are successfully submitted
@@ -154,6 +194,7 @@ const Index = () => {
     fetchPendingTasks();
     fetchRecentActivities();
     fetchGoalProgress();
+    fetchChartsData();
     setIsCompanyModalOpen(false);
     setIsOpportunityModalOpen(false);
     setIsTaskModalOpen(false);
@@ -359,6 +400,120 @@ const Index = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Pipeline Distribution Chart */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Distribuição do Pipeline
+            </h3>
+            {loadingCharts ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Carregando gráfico...</p>
+                </div>
+              </div>
+            ) : pipelineData.length > 0 ? (
+              <ChartContainer
+                config={{
+                  count: {
+                    label: "Oportunidades",
+                  },
+                }}
+                className="h-48"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pipelineData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="count"
+                      nameKey="stage"
+                      label={({ stage, count }) => `${stage}: ${count}`}
+                    >
+                      {pipelineData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.color || `hsl(${index * 45}, 70%, 50%)`}
+                        />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-48">
+                <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Conversion Trend Chart */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Tendência de Conversão
+            </h3>
+            {loadingCharts ? (
+              <div className="flex items-center justify-center h-48">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Carregando gráfico...</p>
+                </div>
+              </div>
+            ) : conversionTrend.length > 0 ? (
+              <ChartContainer
+                config={{
+                  conversion_rate: {
+                    label: "Taxa de Conversão (%)",
+                    color: "hsl(var(--primary))",
+                  },
+                }}
+                className="h-48"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={conversionTrend}>
+                    <XAxis 
+                      dataKey="month"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      domain={[0, 100]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="conversion_rate"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent 
+                        formatter={(value, name) => [
+                          `${value}%`,
+                          name === 'conversion_rate' ? 'Taxa de Conversão' : name
+                        ]}
+                      />} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-48">
+                <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Activities and Tasks Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
