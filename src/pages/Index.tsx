@@ -30,6 +30,8 @@ const Index = () => {
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
   
   // Modal states
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -47,6 +49,7 @@ const Index = () => {
     if (user) {
       loadDashboardData();
       fetchPendingTasks();
+      fetchRecentActivities();
     }
   }, [user]);
 
@@ -91,11 +94,35 @@ const Index = () => {
     }
   }
 
+  async function fetchRecentActivities() {
+    try {
+      setLoadingActivities(true);
+      const { data: activities, error } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Erro ao buscar atividades recentes:', error);
+        setRecentActivities([]);
+      } else {
+        setRecentActivities(activities || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar atividades recentes:', error);
+      setRecentActivities([]);
+    } finally {
+      setLoadingActivities(false);
+    }
+  }
+
   // Modal handlers
   const handleModalSuccess = () => {
     // Refresh data when forms are successfully submitted
     loadDashboardData();
     fetchPendingTasks();
+    fetchRecentActivities();
     setIsCompanyModalOpen(false);
     setIsOpportunityModalOpen(false);
     setIsTaskModalOpen(false);
@@ -173,26 +200,48 @@ const Index = () => {
     { title: "Enviar Proposta", icon: FileText }
   ];
 
-  const recentActivities = [
-    {
-      title: "Nova oportunidade aprovada",
-      description: "2 horas atrás",
-      icon: CheckCircle,
-      iconColor: "text-green-500"
-    },
-    {
-      title: "Cliente cadastrado no sistema",
-      description: "4 horas atrás",
-      icon: Users,
-      iconColor: "text-blue-500"
-    },
-    {
-      title: "Reunião agendada para amanhã",
-      description: "6 horas atrás",
-      icon: Calendar,
-      iconColor: "text-yellow-500"
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'COMPANY_CREATED':
+        return Users;
+      case 'OPPORTUNITY_CREATED':
+        return Briefcase;
+      case 'TASK_CREATED':
+        return Calendar;
+      default:
+        return CheckCircle;
     }
-  ];
+  };
+
+  const getActivityIconColor = (type: string) => {
+    switch (type) {
+      case 'COMPANY_CREATED':
+        return 'text-blue-500';
+      case 'OPPORTUNITY_CREATED':
+        return 'text-green-500';
+      case 'TASK_CREATED':
+        return 'text-yellow-500';
+      default:
+        return 'text-gray-500';
+    }
+  };
+
+  const formatActivityTime = (createdAt: string) => {
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Agora há pouco';
+    } else if (diffInHours === 1) {
+      return '1 hora atrás';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} horas atrás`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return diffInDays === 1 ? '1 dia atrás' : `${diffInDays} dias atrás`;
+    }
+  };
 
 
   return (
@@ -250,21 +299,37 @@ const Index = () => {
               Atividades Recentes
             </h3>
             <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className={`p-2 rounded-lg bg-muted ${activity.iconColor}`}>
-                    <activity.icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {activity.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.description}
-                    </p>
-                  </div>
+              {loadingActivities ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Carregando atividades...</p>
                 </div>
-              ))}
+              ) : recentActivities.length > 0 ? (
+                recentActivities.map((activity) => {
+                  const IconComponent = getActivityIcon(activity.type);
+                  const iconColor = getActivityIconColor(activity.type);
+                  
+                  return (
+                    <div key={activity.id} className="flex items-start space-x-3">
+                      <div className={`p-2 rounded-lg bg-muted ${iconColor}`}>
+                        <IconComponent className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {activity.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatActivityTime(activity.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma atividade recente encontrada.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
