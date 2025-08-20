@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { LogOut, Users, BarChart3, Settings } from "lucide-react";
+import { LogOut, Users, BarChart3, Settings, FolderOpen } from "lucide-react";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -75,7 +75,7 @@ const Index = () => {
         </div>
 
         {/* Quick Actions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-gradient-primary rounded-lg">
@@ -90,6 +90,27 @@ const Index = () => {
             </p>
             <Button variant="outline" className="w-full transition-smooth">
               Ver Clientes
+            </Button>
+          </div>
+
+          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-medium hover:shadow-glow transition-smooth border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 bg-gradient-primary rounded-lg">
+                <FolderOpen className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-crm-navy mb-2">
+              Projetos
+            </h3>
+            <p className="text-crm-gray text-sm mb-4">
+              Gerencie seus projetos ativos
+            </p>
+            <Button 
+              variant="outline" 
+              className="w-full transition-smooth"
+              onClick={() => navigate("/projetos")}
+            >
+              Ver Projetos
             </Button>
           </div>
 
