@@ -18,6 +18,7 @@ interface Proposal {
   company_id: number | null;
   owner_id: string;
   created_at: string;
+  pdf_url: string | null;
   companies?: {
     name: string;
   };
@@ -28,6 +29,8 @@ export default function Proposals() {
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchProposals = async () => {
@@ -96,6 +99,11 @@ export default function Proposals() {
     setEditingProposal(null);
   };
 
+  const handleRowClick = (proposal: Proposal) => {
+    setSelectedProposal(proposal);
+    setIsDetailsOpen(true);
+  };
+
   const getStatusBadgeVariant = (status: string | null) => {
     switch (status) {
       case 'Enviada':
@@ -159,7 +167,11 @@ export default function Proposals() {
               </TableHeader>
               <TableBody>
                 {proposals.map((proposal) => (
-                  <TableRow key={proposal.id}>
+                  <TableRow 
+                    key={proposal.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(proposal)}
+                  >
                     <TableCell className="font-medium">
                       {proposal.title}
                     </TableCell>
@@ -174,7 +186,7 @@ export default function Proposals() {
                         {proposal.status || 'Rascunho'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -210,6 +222,59 @@ export default function Proposals() {
           onSuccess={handleFormSuccess}
           onCancel={handleFormCancel}
         />
+      </Dialog>
+
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <div className="p-0">
+          <div className="mx-auto max-w-6xl p-6">
+            <div className="mb-6 space-y-4">
+              <h2 className="text-2xl font-bold">Detalhes da Proposta</h2>
+              {selectedProposal && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Título</label>
+                    <p className="text-lg font-medium">{selectedProposal.title}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Cliente</label>
+                    <p>Cliente #{selectedProposal.company_id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Valor</label>
+                    <p>{formatCurrency(selectedProposal.value)}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <div className="pt-1">
+                      <Badge variant={getStatusBadgeVariant(selectedProposal.status)}>
+                        {selectedProposal.status || 'Rascunho'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {selectedProposal?.pdf_url && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Documento PDF</h3>
+                <iframe
+                  src={selectedProposal.pdf_url}
+                  width="100%"
+                  height="700px"
+                  className="border rounded-lg"
+                  title="Visualizador de PDF da Proposta"
+                />
+              </div>
+            )}
+            
+            {!selectedProposal?.pdf_url && (
+              <div className="flex items-center justify-center h-32 border rounded-lg border-dashed">
+                <p className="text-muted-foreground">Nenhum PDF anexado a esta proposta</p>
+              </div>
+            )}
+          </div>
+        </div>
       </Dialog>
     </div>
   );
