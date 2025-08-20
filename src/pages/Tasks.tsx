@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -32,6 +33,7 @@ const Tasks = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -167,6 +169,36 @@ const Tasks = () => {
 
   const handleFormSuccess = () => {
     fetchTasks();
+  };
+
+  const handleDelete = async (task: Task) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", task.id);
+
+      if (error) {
+        toast({
+          title: "Erro ao excluir tarefa",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Tarefa excluída",
+          description: `${task.name} foi excluída com sucesso.`,
+        });
+        fetchTasks(); // Refresh the list
+        setTaskToDelete(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir a tarefa.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDueDate = (dateString: string | null) => {
@@ -311,6 +343,13 @@ const Tasks = () => {
                                 Concluir
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem
+                              onClick={() => setTaskToDelete(task)}
+                              className="cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -329,6 +368,27 @@ const Tasks = () => {
         task={selectedTask}
         onSuccess={handleFormSuccess}
       />
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a tarefa "{taskToDelete?.name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => taskToDelete && handleDelete(taskToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
