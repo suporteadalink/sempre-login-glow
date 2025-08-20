@@ -1,0 +1,321 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface Task {
+  id: number;
+  name: string;
+  due_date: string | null;
+  priority: string | null;
+  status: string | null;
+  description: string | null;
+  created_at: string;
+  responsible_id: string | null;
+}
+
+const Tasks = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user]);
+
+  const fetchTasks = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Erro ao carregar tarefas",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setTasks(data || []);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao carregar as tarefas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getPriorityVariant = (priority: string | null) => {
+    switch (priority?.toLowerCase()) {
+      case "alta":
+      case "urgente":
+        return "destructive"; // Red
+      case "média":
+      case "normal":
+        return "secondary"; // Yellow/Orange  
+      case "baixa":
+        return "outline"; // Default/Gray
+      default:
+        return "outline";
+    }
+  };
+
+  const getPriorityColor = (priority: string | null) => {
+    switch (priority?.toLowerCase()) {
+      case "alta":
+      case "urgente":
+        return "bg-red-100 text-red-800 hover:bg-red-200";
+      case "média":
+      case "normal":
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+      case "baixa":
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+    }
+  };
+
+  const getStatusColor = (status: string | null) => {
+    switch (status?.toLowerCase()) {
+      case "pendente":
+        return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+      case "em andamento":
+      case "em_andamento":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+      case "concluída":
+      case "concluido":
+      case "finalizada":
+        return "bg-green-100 text-green-800 hover:bg-green-200";
+      case "cancelada":
+        return "bg-red-100 text-red-800 hover:bg-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+    }
+  };
+
+  const handleEdit = (task: Task) => {
+    toast({
+      title: "Editar Tarefa",
+      description: `Funcionalidade de edição para ${task.name} será implementada em breve.`,
+    });
+  };
+
+  const handleComplete = async (task: Task) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: "Concluída" })
+        .eq("id", task.id);
+
+      if (error) {
+        toast({
+          title: "Erro ao concluir tarefa",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Tarefa concluída",
+          description: `${task.name} foi marcada como concluída.`,
+        });
+        fetchTasks(); // Refresh the list
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao concluir a tarefa.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNewTask = () => {
+    toast({
+      title: "Adicionar Nova Tarefa",
+      description: "Funcionalidade de criação de tarefas será implementada em breve.",
+    });
+  };
+
+  const formatDueDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    try {
+      return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return "-";
+    }
+  };
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold text-foreground mb-2">
+          Lista de Tarefas
+        </h2>
+        <p className="text-muted-foreground">
+          Gerencie todas as suas tarefas em um só lugar
+        </p>
+      </div>
+
+      <Card className="shadow-medium">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+          <CardTitle className="text-xl font-semibold text-foreground">
+            Tarefas
+          </CardTitle>
+          <Button
+            onClick={handleNewTask}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Nova Tarefa
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Carregando tarefas...</span>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg mb-4">
+                Nenhuma tarefa encontrada
+              </p>
+              <p className="text-muted-foreground text-sm">
+                Comece criando sua primeira tarefa
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted hover:bg-muted">
+                    <TableHead className="font-semibold">
+                      Nome
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Data de Vencimento
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Prioridade
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Status
+                    </TableHead>
+                    <TableHead className="font-semibold w-12">
+                      Ações
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tasks.map((task) => (
+                    <TableRow
+                      key={task.id}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{task.name}</p>
+                          {task.description && (
+                            <p className="text-sm text-muted-foreground truncate max-w-xs">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDueDate(task.due_date)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={`font-medium ${getPriorityColor(task.priority)}`}
+                        >
+                          {task.priority || "Não definida"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={`font-medium ${getStatusColor(task.status)}`}
+                        >
+                          {task.status || "Pendente"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                            >
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(task)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            {task.status?.toLowerCase() !== "concluída" && task.status?.toLowerCase() !== "concluido" && (
+                              <DropdownMenuItem
+                                onClick={() => handleComplete(task)}
+                                className="cursor-pointer text-green-600 focus:text-green-600"
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Concluir
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Tasks;
