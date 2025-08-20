@@ -24,6 +24,8 @@ const Index = () => {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -34,6 +36,7 @@ const Index = () => {
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      fetchPendingTasks();
     }
   }, [user]);
 
@@ -52,6 +55,29 @@ const Index = () => {
       console.error('Erro ao carregar dados do dashboard:', error);
     } finally {
       setLoadingMetrics(false);
+    }
+  }
+
+  async function fetchPendingTasks() {
+    try {
+      setLoadingTasks(true);
+      const { data: tasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('status', 'Pendente')
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar tarefas pendentes:', error);
+        setPendingTasks([]);
+      } else {
+        setPendingTasks(tasks || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar tarefas pendentes:', error);
+      setPendingTasks([]);
+    } finally {
+      setLoadingTasks(false);
     }
   }
 
@@ -129,26 +155,6 @@ const Index = () => {
     }
   ];
 
-  const pendingTasks = [
-    {
-      title: "Revisar proposta comercial",
-      status: "Urgente",
-      statusColor: "destructive",
-      icon: AlertCircle
-    },
-    {
-      title: "Ligar para cliente em potencial",
-      status: "Pendente",
-      statusColor: "secondary",
-      icon: Clock
-    },
-    {
-      title: "Preparar apresentação",
-      status: "Agendado",
-      statusColor: "default",
-      icon: FileText
-    }
-  ];
 
   return (
     <div className="space-y-8">
@@ -230,19 +236,37 @@ const Index = () => {
               Tarefas Pendentes
             </h3>
             <div className="space-y-4">
-              {pendingTasks.map((task, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <task.icon className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-medium text-foreground">
-                      {task.title}
-                    </p>
-                  </div>
-                  <Badge variant={task.statusColor as any}>
-                    {task.status}
-                  </Badge>
+              {loadingTasks ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Carregando tarefas...</p>
                 </div>
-              ))}
+              ) : pendingTasks.length > 0 ? (
+                pendingTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {task.name}
+                        </p>
+                        {task.due_date && (
+                          <p className="text-xs text-muted-foreground">
+                            Vence em: {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={task.priority === 'Alta' ? 'destructive' : task.priority === 'Média' ? 'default' : 'secondary'}>
+                      {task.priority || 'Normal'}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma tarefa pendente encontrada.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
