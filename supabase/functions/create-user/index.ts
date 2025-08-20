@@ -74,12 +74,26 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in create-user function:', error);
+    
+    let errorMessage = 'Erro interno do servidor';
+    let statusCode = 500;
+    
+    if (error.message?.includes('email address has already been registered')) {
+      errorMessage = 'Este email já está sendo usado por outro usuário';
+      statusCode = 409; // Conflict
+    } else if (error.message?.includes('For security purposes')) {
+      errorMessage = 'Aguarde alguns segundos antes de tentar novamente';
+      statusCode = 429; // Too Many Requests
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Erro interno do servidor' 
+        error: errorMessage
       }),
       {
-        status: 500,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

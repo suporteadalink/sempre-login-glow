@@ -373,7 +373,8 @@ export default function Settings() {
         });
 
         if (error) {
-          throw error;
+          // The edge function returned an error
+          throw new Error(data?.error || error.message || 'Erro ao criar usuário');
         }
 
         console.log(data);
