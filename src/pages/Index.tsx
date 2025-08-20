@@ -97,15 +97,16 @@ const Index = () => {
   async function fetchRecentActivities() {
     try {
       setLoadingActivities(true);
-      // Using rpc to query activity_log since it's not in types yet
-      const { data: activities, error } = await supabase
-        .rpc('get_recent_activities');
+      // @ts-ignore - Function exists in database but not in types
+      const { data: activities, error } = await supabase.rpc('get_recent_activities');
 
       if (error) {
         console.error('Erro ao buscar atividades recentes:', error);
         setRecentActivities([]);
       } else {
-        setRecentActivities(activities || []);
+        // Parse the JSON response since RPC returns JSON
+        const activitiesArray = Array.isArray(activities) ? activities : [];
+        setRecentActivities(activitiesArray);
       }
     } catch (error) {
       console.error('Erro ao carregar atividades recentes:', error);
