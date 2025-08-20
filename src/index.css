@@ -17,9 +17,9 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 213 93% 68%;
+    --primary: 51 100% 50%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --primary-glow: 46 100% 50%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -27,36 +27,37 @@ All colors MUST be HSL.
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 213 93% 68%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 39 100% 50%;
+    --accent-foreground: 222.2 84% 4.9%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --ring: 51 100% 50%;
 
     --radius: 0.75rem;
 
     /* CRM Brand Colors & Gradients */
-    --crm-blue: 217 91% 60%;
-    --crm-blue-light: 213 93% 68%;
-    --crm-blue-dark: 221 83% 53%;
+    --crm-gold: 51 100% 50%;
+    --crm-gold-light: 46 100% 50%;
+    --crm-orange: 39 100% 50%;
+    --crm-orange-light: 33 100% 63%;
     --crm-navy: 222 47% 11%;
     --crm-gray: 215 16% 47%;
     --crm-gray-light: 210 40% 96%;
 
     /* Beautiful Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--crm-blue)), hsl(var(--crm-blue-light)));
-    --gradient-hero: linear-gradient(135deg, hsl(var(--crm-blue)) 0%, hsl(var(--crm-blue-light)) 50%, hsl(var(--crm-blue)) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(var(--crm-gold)), hsl(var(--crm-orange)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--crm-gold)) 0%, hsl(var(--crm-gold-light)) 50%, hsl(var(--crm-orange)) 100%);
     --gradient-background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
 
     /* Elegant Shadows */
     --shadow-soft: 0 1px 3px 0 hsl(var(--crm-navy) / 0.1), 0 1px 2px 0 hsl(var(--crm-navy) / 0.06);
     --shadow-medium: 0 4px 6px -1px hsl(var(--crm-navy) / 0.1), 0 2px 4px -1px hsl(var(--crm-navy) / 0.06);
     --shadow-large: 0 10px 15px -3px hsl(var(--crm-navy) / 0.1), 0 4px 6px -2px hsl(var(--crm-navy) / 0.05);
-    --shadow-glow: 0 0 0 1px hsl(var(--crm-blue) / 0.05), 0 10px 30px -10px hsl(var(--crm-blue) / 0.3);
+    --shadow-glow: 0 0 0 1px hsl(var(--crm-gold) / 0.05), 0 10px 30px -10px hsl(var(--crm-gold) / 0.3);
 
     /* Smooth Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
