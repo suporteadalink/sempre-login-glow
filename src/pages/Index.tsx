@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +21,8 @@ import {
   FileText,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  TrendingUp
 } from "lucide-react";
 
 const Index = () => {
@@ -32,6 +34,8 @@ const Index = () => {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
+  const [goalProgress, setGoalProgress] = useState<any>(null);
+  const [loadingGoal, setLoadingGoal] = useState(true);
   
   // Modal states
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
@@ -50,6 +54,7 @@ const Index = () => {
       loadDashboardData();
       fetchPendingTasks();
       fetchRecentActivities();
+      fetchGoalProgress();
     }
   }, [user]);
 
@@ -116,12 +121,39 @@ const Index = () => {
     }
   }
 
+  // Exemplo de como chamar a função de progresso de meta
+  async function fetchGoalProgress() {
+    try {
+      setLoadingGoal(true);
+      // @ts-ignore - Function exists in database but not in types
+      const { data: goalProgress, error } = await supabase.rpc('get_my_goal_progress');
+
+      if (error) {
+        console.error('Erro ao buscar progresso da meta:', error);
+        setGoalProgress(null);
+      } else if (goalProgress) { 
+        // 'goalProgress' será um objeto como:
+        // { targetValue: 50000, currentValue: 15000, progressPercentage: 30, goalName: 'Meta de Vendas Agosto' }
+        // ou NULL se não houver meta.
+        setGoalProgress(goalProgress); // Salva os dados da meta em um estado
+      } else {
+        setGoalProgress(null);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar progresso da meta:', error);
+      setGoalProgress(null);
+    } finally {
+      setLoadingGoal(false);
+    }
+  }
+
   // Modal handlers
   const handleModalSuccess = () => {
     // Refresh data when forms are successfully submitted
     loadDashboardData();
     fetchPendingTasks();
     fetchRecentActivities();
+    fetchGoalProgress();
     setIsCompanyModalOpen(false);
     setIsOpportunityModalOpen(false);
     setIsTaskModalOpen(false);
@@ -288,6 +320,45 @@ const Index = () => {
           ))}
         </div>
       </div>
+
+      {/* Goal Progress Section */}
+      {goalProgress && (
+        <Card className="transition-all hover:shadow-medium">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 rounded-lg bg-gradient-primary">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {goalProgress.goalName}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Progresso da meta atual
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-foreground">
+                  {goalProgress.progressPercentage}%
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  R$ {new Intl.NumberFormat('pt-BR').format(goalProgress.currentValue)} / R$ {new Intl.NumberFormat('pt-BR').format(goalProgress.targetValue)}
+                </p>
+              </div>
+            </div>
+            <Progress 
+              value={goalProgress.progressPercentage} 
+              className="h-3"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground mt-2">
+              <span>Início: {new Date(goalProgress.startDate).toLocaleDateString('pt-BR')}</span>
+              <span>Fim: {new Date(goalProgress.endDate).toLocaleDateString('pt-BR')}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Activities and Tasks Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
