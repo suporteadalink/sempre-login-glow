@@ -17,8 +17,9 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 213 93% 68%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -26,17 +27,40 @@ All colors MUST be HSL.
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 213 93% 68%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* CRM Brand Colors & Gradients */
+    --crm-blue: 217 91% 60%;
+    --crm-blue-light: 213 93% 68%;
+    --crm-blue-dark: 221 83% 53%;
+    --crm-navy: 222 47% 11%;
+    --crm-gray: 215 16% 47%;
+    --crm-gray-light: 210 40% 96%;
+
+    /* Beautiful Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--crm-blue)), hsl(var(--crm-blue-light)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--crm-blue)) 0%, hsl(var(--crm-blue-light)) 50%, hsl(var(--crm-blue)) 100%);
+    --gradient-background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
+
+    /* Elegant Shadows */
+    --shadow-soft: 0 1px 3px 0 hsl(var(--crm-navy) / 0.1), 0 1px 2px 0 hsl(var(--crm-navy) / 0.06);
+    --shadow-medium: 0 4px 6px -1px hsl(var(--crm-navy) / 0.1), 0 2px 4px -1px hsl(var(--crm-navy) / 0.06);
+    --shadow-large: 0 10px 15px -3px hsl(var(--crm-navy) / 0.1), 0 4px 6px -2px hsl(var(--crm-navy) / 0.05);
+    --shadow-glow: 0 0 0 1px hsl(var(--crm-blue) / 0.05), 0 10px 30px -10px hsl(var(--crm-blue) / 0.3);
+
+    /* Smooth Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 0 0% 98%;
 
