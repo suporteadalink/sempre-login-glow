@@ -377,14 +377,19 @@ export default function Settings() {
           console.error('Edge function error:', error);
           console.error('Edge function data:', data);
           
-          // Check if it's a status code error
-          if (error.message && error.message.includes('non-2xx status code')) {
-            // The edge function returned an error response
-            throw new Error(data?.error || 'Erro ao criar usuário - verifique se o email já não está em uso');
+          // Extract error message from the response
+          let errorMessage = 'Erro ao criar usuário';
+          
+          if (data && typeof data === 'object' && data.error) {
+            errorMessage = data.error;
+          } else if (error.message && error.message.includes('non-2xx status code')) {
+            // Try to parse the error from the response
+            errorMessage = data?.error || 'Erro ao criar usuário - verifique se o email já não está em uso';
+          } else {
+            errorMessage = error.message || 'Erro ao criar usuário';
           }
           
-          // Other types of errors
-          throw new Error(data?.error || error.message || 'Erro ao criar usuário');
+          throw new Error(errorMessage);
         }
 
         console.log(data);
