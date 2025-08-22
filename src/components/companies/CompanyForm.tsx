@@ -261,6 +261,8 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                       onChange={(e) => {
                         const formattedValue = formatCNPJ(e.target.value);
                         field.onChange(formattedValue);
+                        // Força a validação imediata do campo
+                        form.trigger("cnpj");
                       }}
                       maxLength={18}
                     />
