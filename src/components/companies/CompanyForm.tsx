@@ -11,9 +11,65 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Função para validar CNPJ usando o algoritmo oficial brasileiro
+const isValidCNPJ = (cnpj: string): boolean => {
+  // Remove caracteres não numéricos
+  const cleanCNPJ = cnpj.replace(/[^\d]/g, '');
+  
+  // Verifica se tem 14 dígitos
+  if (cleanCNPJ.length !== 14) return false;
+  
+  // Verifica se todos os dígitos são iguais (ex: 11111111111111)
+  if (/^(\d)\1+$/.test(cleanCNPJ)) return false;
+  
+  // Validação do primeiro dígito verificador
+  let sum = 0;
+  let weight = 5;
+  
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cleanCNPJ[i]) * weight;
+    weight = weight === 2 ? 9 : weight - 1;
+  }
+  
+  let digit1 = sum % 11;
+  digit1 = digit1 < 2 ? 0 : 11 - digit1;
+  
+  if (parseInt(cleanCNPJ[12]) !== digit1) return false;
+  
+  // Validação do segundo dígito verificador
+  sum = 0;
+  weight = 6;
+  
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(cleanCNPJ[i]) * weight;
+    weight = weight === 2 ? 9 : weight - 1;
+  }
+  
+  let digit2 = sum % 11;
+  digit2 = digit2 < 2 ? 0 : 11 - digit2;
+  
+  return parseInt(cleanCNPJ[13]) === digit2;
+};
+
+// Função para formatar CNPJ
+const formatCNPJ = (value: string): string => {
+  const cleanValue = value.replace(/[^\d]/g, '');
+  return cleanValue
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .substring(0, 18);
+};
+
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional(),
+  cnpj: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true; // CNPJ é opcional
+    return isValidCNPJ(val);
+  }, {
+    message: "CNPJ inválido. Verifique os dígitos digitados."
+  }),
   sector: z.string().optional(),
   size: z.string().optional(),
   number_of_employees: z.number().optional(),
@@ -199,7 +255,15 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                 <FormItem>
                   <FormLabel>CNPJ</FormLabel>
                   <FormControl>
-                    <Input placeholder="00.000.000/0000-00" {...field} />
+                    <Input 
+                      placeholder="00.000.000/0000-00" 
+                      {...field}
+                      onChange={(e) => {
+                        const formattedValue = formatCNPJ(e.target.value);
+                        field.onChange(formattedValue);
+                      }}
+                      maxLength={18}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -381,7 +445,10 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading || !form.formState.isValid}
+            >
               {loading ? "Salvando..." : "Salvar"}
             </Button>
           </div>
