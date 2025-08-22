@@ -374,19 +374,46 @@ export default function Settings() {
         });
 
         if (error) {
-          console.error('Edge function error:', error);
-          console.error('Edge function data:', data);
+          console.error('Edge function error details:', {
+            error,
+            data,
+            errorMessage: error.message,
+            errorName: error.name,
+            dataType: typeof data,
+            dataStringified: JSON.stringify(data)
+          });
           
           // Extract error message from the response
           let errorMessage = 'Erro ao criar usuário';
           
-          if (data && typeof data === 'object' && data.error) {
-            errorMessage = data.error;
-          } else if (error.message && error.message.includes('non-2xx status code')) {
-            // Try to parse the error from the response
-            errorMessage = data?.error || 'Erro ao criar usuário - verifique se o email já não está em uso';
-          } else {
-            errorMessage = error.message || 'Erro ao criar usuário';
+          // Try different ways to get the error message
+          if (data && typeof data === 'object') {
+            if (data.error) {
+              errorMessage = data.error;
+            } else if (data.message) {
+              errorMessage = data.message;
+            }
+          } else if (typeof data === 'string') {
+            try {
+              const parsedData = JSON.parse(data);
+              if (parsedData.error) {
+                errorMessage = parsedData.error;
+              }
+            } catch (e) {
+              // If parsing fails, use data as is if it looks like an error message
+              if (data.includes('domínio') || data.includes('@sempreengenharia.com.br')) {
+                errorMessage = data;
+              }
+            }
+          }
+          
+          // Fallback to error message
+          if (errorMessage === 'Erro ao criar usuário' && error.message) {
+            if (error.message.includes('non-2xx status code')) {
+              errorMessage = 'Erro ao criar usuário - verifique se o email já não está em uso';
+            } else {
+              errorMessage = error.message;
+            }
           }
           
           throw new Error(errorMessage);
