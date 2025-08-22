@@ -28,6 +28,19 @@ serve(async (req) => {
 
     const { email, password, name, role, phone } = await req.json();
 
+    // Validar se o email é do domínio permitido
+    if (!email || !email.endsWith('@sempreengenharia.com.br')) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'O cadastro é permitido apenas para e-mails do domínio @sempreengenharia.com.br'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     console.log('Creating user with data:', { email, name, role, phone });
 
     // Create user in auth
