@@ -142,11 +142,24 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
 }
 
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving company:', error);
+      
+      // Verificar se é erro de violação de constraint única (código 23505)
+      let errorMessage = "Não foi possível salvar a empresa.";
+      
+      if (error?.code === '23505') {
+        // Erro de violação de constraint única
+        if (error.message?.includes('companies_name_unique')) {
+          errorMessage = "Erro: Já existe uma empresa cadastrada com este nome.";
+        } else {
+          errorMessage = "Erro: Já existe uma empresa cadastrada com este Nome ou CNPJ.";
+        }
+      }
+      
       toast({
         title: "Erro",
-        description: "Não foi possível salvar a empresa.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
