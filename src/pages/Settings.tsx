@@ -363,63 +363,34 @@ export default function Settings() {
         });
       } else {
         // Create new user using edge function
-        const { data, error } = await supabase.functions.invoke('create-user', {
-          body: {
+        // Use direct fetch to properly handle error responses
+        const session = await supabase.auth.getSession();
+        
+        const response = await fetch('https://xrfaptpqlllibcopnzdm.supabase.co/functions/v1/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session?.access_token}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZmFwdHBxbGxsaWJjb3BuemRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NTg5MjgsImV4cCI6MjA3MTIzNDkyOH0.K9qdrv1LxDd4TetXWux39ll0Ba-LDETOrrRlzfq4Jr8'
+          },
+          body: JSON.stringify({
             email: userFormData.email,
             password: userFormData.password,
             name: userFormData.name,
             role: userFormData.role,
             phone: userFormData.phone
-          }
+          })
         });
 
-        if (error) {
-          console.error('Edge function error details:', {
-            error,
-            data,
-            errorMessage: error.message,
-            errorName: error.name,
-            dataType: typeof data,
-            dataStringified: JSON.stringify(data)
-          });
-          
-          // Extract error message from the response
-          let errorMessage = 'Erro ao criar usuário';
-          
-          // Try different ways to get the error message
-          if (data && typeof data === 'object') {
-            if (data.error) {
-              errorMessage = data.error;
-            } else if (data.message) {
-              errorMessage = data.message;
-            }
-          } else if (typeof data === 'string') {
-            try {
-              const parsedData = JSON.parse(data);
-              if (parsedData.error) {
-                errorMessage = parsedData.error;
-              }
-            } catch (e) {
-              // If parsing fails, use data as is if it looks like an error message
-              if (data.includes('domínio') || data.includes('@sempreengenharia.com.br')) {
-                errorMessage = data;
-              }
-            }
-          }
-          
-          // Fallback to error message
-          if (errorMessage === 'Erro ao criar usuário' && error.message) {
-            if (error.message.includes('non-2xx status code')) {
-              errorMessage = 'Erro ao criar usuário - verifique se o email já não está em uso';
-            } else {
-              errorMessage = error.message;
-            }
-          }
-          
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          // Use the specific error message from the response
+          const errorMessage = responseData.error || 'Erro ao criar usuário';
           throw new Error(errorMessage);
         }
 
-        console.log(data);
+        console.log('User created successfully:', responseData);
         
         toast({
           title: "Sucesso!",
