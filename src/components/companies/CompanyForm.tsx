@@ -62,6 +62,27 @@ const formatCNPJ = (value: string): string => {
     .substring(0, 18);
 };
 
+// Função para formatar telefone brasileiro (10 ou 11 dígitos)
+const formatPhone = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 10) {
+    // Telefone fixo: (11) 3385-1277
+    return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  }
+  // Celular: (11) 93385-1277
+  return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+};
+
+// Schema individual para cada contato
+const contactItemSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  phone: z.string()
+    .min(14, "Telefone é obrigatório")
+    .max(15, "Telefone inválido")
+    .regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, "Formato: (11) 93385-1277"),
+  role: z.string().min(1, "Cargo é obrigatório")
+});
+
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
   cnpj: z.string().optional().refine((val) => {
@@ -80,6 +101,7 @@ const companySchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   website: z.string().optional(),
   type: z.string().optional(),
+  contacts: z.array(contactItemSchema).min(1, "Pelo menos um contato é obrigatório").max(3, "Máximo 3 contatos permitidos")
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -125,6 +147,11 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       email: "",
       website: "",
       type: "",
+      contacts: [
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" }
+      ]
     },
   });
 
@@ -143,6 +170,11 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         email: company.email || "",
         website: company.website || "",
         type: company.type || "",
+        contacts: [
+          { name: "", phone: "", role: "" },
+          { name: "", phone: "", role: "" },
+          { name: "", phone: "", role: "" }
+        ]
       });
     }
   }, [company, form]);
@@ -178,24 +210,49 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           description: "Empresa atualizada com sucesso.",
         });
 } else {
-  // 1. PEGUE O USUÁRIO LOGADO PRIMEIRO
-  const { data: { user } } = await supabase.auth.getUser();
+        // 1. PEGUE O USUÁRIO LOGADO PRIMEIRO
+        const { data: { user } } = await supabase.auth.getUser();
 
-  // 2. ADICIONE O user.id AOS DADOS QUE SERÃO SALVOS
-  const { error } = await supabase
-    .from('companies')
-    .insert({
-      ...submitData, // Pega todos os dados do formulário (nome, cnpj, etc.)
-      owner_id: user.id // E ADICIONA O ID DO USUÁRIO COMO O DONO!
-    });
+        // 2. INSIRA A EMPRESA E RECEBA O ID
+        const { data: newCompany, error: companyError } = await supabase
+          .from('companies')
+          .insert({
+            ...submitData,
+            owner_id: user.id
+          })
+          .select()
+          .single();
 
-  if (error) throw error;
+        if (companyError) throw companyError;
 
-  toast({
-    title: "Sucesso",
-    description: "Empresa criada com sucesso.",
-  });
-}
+        // 3. FILTRA CONTATOS VÁLIDOS (com pelo menos nome preenchido)
+        const validContacts = data.contacts.filter(contact => 
+          contact.name.trim() !== "" || contact.phone.trim() !== "" || contact.role.trim() !== ""
+        );
+
+        // 4. VALIDA E INSERE OS CONTATOS
+        if (validContacts.length > 0) {
+          for (const contact of validContacts) {
+            const validatedContact = contactItemSchema.parse(contact);
+            const { error: contactError } = await supabase
+              .from('contacts')
+              .insert({
+                name: validatedContact.name,
+                phone: validatedContact.phone,
+                role: validatedContact.role,
+                company_id: newCompany.id,
+                owner_id: user.id
+              });
+
+            if (contactError) throw contactError;
+          }
+        }
+
+        toast({
+          title: "Sucesso",
+          description: `Empresa criada com ${validContacts.length} contato(s) adicionado(s).`,
+        });
+      }
 
       onSuccess();
     } catch (error: any) {
@@ -441,6 +498,73 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                 </FormItem>
               )}
             />
+          </div>
+
+          {/* Seção de Contatos */}
+          <div className="border-t pt-6 mt-6">
+            <h3 className="text-lg font-semibold mb-4">Contatos da Empresa</h3>
+            <div className="space-y-6">
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="border rounded-lg p-4 bg-muted/30">
+                  <h4 className="font-medium mb-3">
+                    Contato {index + 1} {index === 0 && <span className="text-destructive">*</span>}
+                    {index > 0 && <span className="text-muted-foreground text-sm">(Opcional)</span>}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`contacts.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome {index === 0 && "*"}</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nome do contato" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`contacts.${index}.phone`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone {index === 0 && "*"}</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="(11) 93385-1277" 
+                              {...field}
+                              onChange={(e) => {
+                                const formattedValue = formatPhone(e.target.value);
+                                field.onChange(formattedValue);
+                                form.trigger(`contacts.${index}.phone`);
+                              }}
+                              maxLength={15}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`contacts.${index}.role`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cargo {index === 0 && "*"}</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Diretor Comercial" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
