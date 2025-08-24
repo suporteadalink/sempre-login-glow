@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2, Clock, Check, X, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalForm } from "@/components/proposals/ProposalForm";
@@ -106,6 +106,46 @@ export default function Proposals() {
   const handleFormCancel = () => {
     setIsFormOpen(false);
     setEditingProposal(null);
+  };
+
+  const handleStatusChange = async (proposalId: number, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('proposals' as any)
+        .update({ status: newStatus })
+        .eq('id', proposalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado",
+        description: `Proposta marcada como ${newStatus}.`,
+      });
+      
+      fetchProposals();
+    } catch (error) {
+      console.error('Error updating proposal status:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o status da proposta.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Rascunho':
+        return FileText;
+      case 'Enviada':
+        return Clock;
+      case 'Aceita':
+        return Check;
+      case 'Rejeitada':
+        return X;
+      default:
+        return FileText;
+    }
   };
 
   const handleRowClick = (proposal: Proposal) => {
@@ -229,6 +269,26 @@ export default function Proposals() {
                             <Trash2 className="mr-2 h-4 w-4" />
                             Deletar
                           </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          {['Rascunho', 'Enviada', 'Aceita', 'Rejeitada'].map((status) => {
+                            const StatusIcon = getStatusIcon(status);
+                            const isCurrentStatus = (proposal.status || 'Rascunho') === status;
+                            
+                            return (
+                              <DropdownMenuItem
+                                key={status}
+                                onClick={() => handleStatusChange(proposal.id, status)}
+                                className={isCurrentStatus ? "bg-muted opacity-50 cursor-not-allowed" : ""}
+                                disabled={isCurrentStatus}
+                              >
+                                <StatusIcon className="mr-2 h-4 w-4" />
+                                {status}
+                                {isCurrentStatus && <span className="ml-auto text-xs">atual</span>}
+                              </DropdownMenuItem>
+                            );
+                          })}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
