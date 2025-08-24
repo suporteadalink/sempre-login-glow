@@ -156,20 +156,20 @@ const opportunityCompanySchema = z.object({
   
   // Contacts (3 contacts, first mandatory)
   contacts: z.array(z.object({
-    name: z.string().min(1, "Nome é obrigatório"),
-    phone: z.string().min(1, "Telefone é obrigatório").refine((val) => {
-      if (!val) return false;
-      const cleanPhone = val.replace(/\D/g, '');
-      return cleanPhone.length === 10 || cleanPhone.length === 11;
-    }, {
-      message: "Telefone deve ter 10 ou 11 dígitos"
-    }),
-    role: z.string().min(1, "Cargo é obrigatório")
+    name: z.string(),
+    phone: z.string(),
+    role: z.string()
   })).length(3).refine((contacts) => {
     const firstContact = contacts[0];
     
-    // First contact validation
+    // First contact must be complete
     if (!firstContact.name || !firstContact.phone || !firstContact.role) {
+      return false;
+    }
+    
+    // Validate first contact phone
+    const firstContactPhone = firstContact.phone.replace(/\D/g, '');
+    if (firstContactPhone.length !== 10 && firstContactPhone.length !== 11) {
       return false;
     }
     
@@ -191,7 +191,8 @@ const opportunityCompanySchema = z.object({
     
     return true;
   }, {
-    message: "Primeiro contato é obrigatório. Se preencher outros contatos, todos os campos são obrigatórios."
+    path: ["contacts", 0],
+    message: "Primeiro contato é obrigatório com todos os campos preenchidos."
   }),
   
   // Opportunity data
