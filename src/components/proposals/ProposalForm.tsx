@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 const proposalSchema = z.object({
   title: z.string().min(1, "Título é obrigatório"),
   company_id: z.string().min(1, "Cliente é obrigatório"),
+  project_id: z.string().min(1, "Projeto é obrigatório"),
   value: z.number().min(0, "Valor deve ser positivo").optional(),
   status: z.string().optional(),
   pdf_file: z.instanceof(File).optional().or(z.literal(undefined)),
@@ -26,6 +27,7 @@ interface Proposal {
   value: number | null;
   status: string | null;
   company_id: number | null;
+  project_id: number | null;
   owner_id: string;
   created_at: string;
 }
@@ -33,6 +35,13 @@ interface Proposal {
 interface Company {
   id: number;
   name: string;
+}
+
+interface Project {
+  id: number;
+  title: string;
+  project_code: string | null;
+  status: string | null;
 }
 
 interface ProposalFormProps {
@@ -44,6 +53,7 @@ interface ProposalFormProps {
 export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProps) {
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
@@ -52,6 +62,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
     defaultValues: {
       title: proposal?.title || "",
       company_id: proposal?.company_id?.toString() || "",
+      project_id: proposal?.project_id?.toString() || "",
       value: proposal?.value || undefined,
       status: proposal?.status || "Rascunho",
     },
@@ -76,9 +87,42 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
     }
   };
 
+  const fetchProjectsByCompany = async (companyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, title, project_code, status')
+        .eq('company_id', parseInt(companyId))
+        .in('status', ['Proposta', 'Em Andamento'])
+        .order('title', { ascending: true });
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os projetos.",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchCompanies();
   }, []);
+
+  // Watch company selection to load projects
+  const selectedCompanyId = form.watch("company_id");
+  useEffect(() => {
+    if (selectedCompanyId) {
+      fetchProjectsByCompany(selectedCompanyId);
+      // Clear project selection when company changes
+      form.setValue("project_id", "");
+    } else {
+      setProjects([]);
+    }
+  }, [selectedCompanyId, form]);
 
   const onSubmit = async (data: ProposalFormData) => {
     setLoading(true);
@@ -126,6 +170,7 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
       const proposalData = {
         title: data.title,
         company_id: parseInt(data.company_id),
+        project_id: parseInt(data.project_id),
         value: data.value || null,
         status: data.status || "Rascunho",
         owner_id: user.id,
@@ -235,6 +280,42 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
                   </SelectContent>
                 </Select>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="project_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Projeto *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um projeto" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {projects.length === 0 && selectedCompanyId ? (
+                      <SelectItem value="" disabled>
+                        Nenhum projeto ativo encontrado
+                      </SelectItem>
+                    ) : (
+                      projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.project_code ? `${project.project_code} - ` : ''}{project.title}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+                {!selectedCompanyId && (
+                  <p className="text-sm text-muted-foreground">
+                    Selecione um cliente primeiro
+                  </p>
+                )}
               </FormItem>
             )}
           />

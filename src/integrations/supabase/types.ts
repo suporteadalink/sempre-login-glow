@@ -439,6 +439,7 @@ export type Database = {
           id: number
           owner_id: string
           pdf_url: string | null
+          project_id: number | null
           status: string | null
           title: string
           value: number | null
@@ -449,6 +450,7 @@ export type Database = {
           id?: never
           owner_id: string
           pdf_url?: string | null
+          project_id?: number | null
           status?: string | null
           title: string
           value?: number | null
@@ -459,11 +461,19 @@ export type Database = {
           id?: never
           owner_id?: string
           pdf_url?: string | null
+          project_id?: number | null
           status?: string | null
           title?: string
           value?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_proposals_project_id"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proposals_company_id_fkey"
             columns: ["company_id"]

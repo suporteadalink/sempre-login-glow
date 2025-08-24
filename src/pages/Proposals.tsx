@@ -16,11 +16,16 @@ interface Proposal {
   value: number | null;
   status: string | null;
   company_id: number | null;
+  project_id: number | null;
   owner_id: string;
   created_at: string;
   pdf_url: string | null;
   companies?: {
     name: string;
+  };
+  projects?: {
+    title: string;
+    project_code: string | null;
   };
 }
 
@@ -37,7 +42,11 @@ export default function Proposals() {
     try {
       const { data, error } = await supabase
         .from('proposals' as any)
-        .select('*')
+        .select(`
+          *,
+          companies:company_id(name),
+          projects:project_id(title, project_code)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -160,6 +169,7 @@ export default function Proposals() {
                 <TableRow>
                   <TableHead>Título</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Projeto</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-12"></TableHead>
@@ -176,7 +186,21 @@ export default function Proposals() {
                       {proposal.title}
                     </TableCell>
                     <TableCell>
-                      Cliente #{proposal.company_id || 'N/A'}
+                      {proposal.companies?.name || `Cliente #${proposal.company_id || 'N/A'}`}
+                    </TableCell>
+                    <TableCell>
+                      {proposal.projects ? (
+                        <div>
+                          {proposal.projects.project_code && (
+                            <span className="text-muted-foreground text-sm">
+                              {proposal.projects.project_code} - 
+                            </span>
+                          )}
+                          <span>{proposal.projects.title}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Projeto #${proposal.project_id || 'N/A'}</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {formatCurrency(proposal.value)}
