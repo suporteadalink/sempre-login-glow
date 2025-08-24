@@ -14,36 +14,19 @@ import { Separator } from "@/components/ui/separator";
 const isValidCNPJ = (cnpj: string): boolean => {
   cnpj = cnpj.replace(/[^\d]/g, '');
   
-  if (cnpj.length !== 11 && cnpj.length !== 14) return false;
+  if (cnpj.length !== 14) return false;
   if (/^(\d)\1*$/.test(cnpj)) return false;
-  
-  if (cnpj.length === 11) {
-    const weights1 = [10, 9, 8, 7, 6, 5, 4, 3, 2];
-    const weights2 = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
-    
-    let sum = cnpj.slice(0, 9).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights1[i], 0);
-    let checkDigit1 = 11 - (sum % 11);
-    if (checkDigit1 >= 10) checkDigit1 = 0;
-    
-    sum = cnpj.slice(0, 10).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights2[i], 0);
-    let checkDigit2 = 11 - (sum % 11);
-    if (checkDigit2 >= 10) checkDigit2 = 0;
-    
-    return parseInt(cnpj[9]) === checkDigit1 && parseInt(cnpj[10]) === checkDigit2;
-  }
   
   const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   
   let sum = cnpj.slice(0, 12).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights1[i], 0);
-  let checkDigit1 = 11 - (sum % 11);
-  if (checkDigit1 < 2) checkDigit1 = 0;
-  else checkDigit1 = 11 - checkDigit1;
+  let remainder = sum % 11;
+  let checkDigit1 = remainder < 2 ? 0 : 11 - remainder;
   
   sum = cnpj.slice(0, 13).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights2[i], 0);
-  let checkDigit2 = 11 - (sum % 11);
-  if (checkDigit2 < 2) checkDigit2 = 0;
-  else checkDigit2 = 11 - checkDigit2;
+  remainder = sum % 11;
+  let checkDigit2 = remainder < 2 ? 0 : 11 - remainder;
   
   return parseInt(cnpj[12]) === checkDigit1 && parseInt(cnpj[13]) === checkDigit2;
 };
