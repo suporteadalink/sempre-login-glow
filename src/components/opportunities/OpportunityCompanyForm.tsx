@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +54,58 @@ const formatPhone = (value: string): string => {
   if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 };
+
+const formatCurrency = (value: string): string => {
+  const num = parseFloat(value.replace(/[^\d]/g, '')) / 100;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(num || 0);
+};
+
+const parseCurrency = (value: string): string => {
+  const numbers = value.replace(/[^\d]/g, '');
+  return (parseFloat(numbers) / 100).toString();
+};
+
+// Company size options
+const companySizeOptions = [
+  { value: "Microempresa", label: "Microempresa" },
+  { value: "Pequena", label: "Pequena" },
+  { value: "Média", label: "Média" },
+  { value: "Grande", label: "Grande" }
+];
+
+// Brazilian states
+const brazilianStates = [
+  { value: "AC", label: "AC - Acre" },
+  { value: "AL", label: "AL - Alagoas" },
+  { value: "AP", label: "AP - Amapá" },
+  { value: "AM", label: "AM - Amazonas" },
+  { value: "BA", label: "BA - Bahia" },
+  { value: "CE", label: "CE - Ceará" },
+  { value: "DF", label: "DF - Distrito Federal" },
+  { value: "ES", label: "ES - Espírito Santo" },
+  { value: "GO", label: "GO - Goiás" },
+  { value: "MA", label: "MA - Maranhão" },
+  { value: "MT", label: "MT - Mato Grosso" },
+  { value: "MS", label: "MS - Mato Grosso do Sul" },
+  { value: "MG", label: "MG - Minas Gerais" },
+  { value: "PA", label: "PA - Pará" },
+  { value: "PB", label: "PB - Paraíba" },
+  { value: "PR", label: "PR - Paraná" },
+  { value: "PE", label: "PE - Pernambuco" },
+  { value: "PI", label: "PI - Piauí" },
+  { value: "RJ", label: "RJ - Rio de Janeiro" },
+  { value: "RN", label: "RN - Rio Grande do Norte" },
+  { value: "RS", label: "RS - Rio Grande do Sul" },
+  { value: "RO", label: "RO - Rondônia" },
+  { value: "RR", label: "RR - Roraima" },
+  { value: "SC", label: "SC - Santa Catarina" },
+  { value: "SP", label: "SP - São Paulo" },
+  { value: "SE", label: "SE - Sergipe" },
+  { value: "TO", label: "TO - Tocantins" }
+];
 
 // Contact schema
 const contactItemSchema = z.object({
@@ -334,10 +393,13 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
                   <FormLabel>Receita Anual (R$)</FormLabel>
                   <FormControl>
                     <Input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="0,00" 
-                      {...field} 
+                      placeholder="Digite a receita anual"
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^\d]/g, '');
+                        field.onChange(value);
+                      }}
+                      value={field.value ? formatCurrency(field.value) : ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -411,9 +473,20 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tamanho</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Pequena, Média, Grande" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tamanho" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {companySizeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -439,9 +512,20 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estado</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Digite o estado" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {brazilianStates.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -542,11 +626,38 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
               control={form.control}
               name="expected_close_date"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Data de Fechamento Esperada</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(new Date(field.value), "PPP", { locale: ptBR })
+                          ) : (
+                            <span>Selecione uma data</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
