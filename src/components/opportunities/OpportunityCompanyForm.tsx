@@ -97,29 +97,34 @@ const opportunityCompanySchema = z.object({
   
   // Contacts (3 contacts, first mandatory)
   contacts: z.array(z.object({
-    name: z.string(),
-    phone: z.string(),
-    role: z.string()
+    name: z.string().min(1, "Nome é obrigatório"),
+    phone: z.string().min(1, "Telefone é obrigatório").refine((val) => {
+      if (!val) return false;
+      const cleanPhone = val.replace(/\D/g, '');
+      return cleanPhone.length === 10 || cleanPhone.length === 11;
+    }, {
+      message: "Telefone deve ter 10 ou 11 dígitos"
+    }),
+    role: z.string().min(1, "Cargo é obrigatório")
   })).length(3).refine((contacts) => {
     const firstContact = contacts[0];
+    
+    // First contact validation
     if (!firstContact.name || !firstContact.phone || !firstContact.role) {
       return false;
     }
     
-    try {
-      contactItemSchema.parse(firstContact);
-    } catch {
-      return false;
-    }
-    
+    // Other contacts validation (if any field is filled, all must be filled)
     for (let i = 1; i < contacts.length; i++) {
       const contact = contacts[i];
       const hasAnyField = contact.name || contact.phone || contact.role;
       
       if (hasAnyField) {
-        try {
-          contactItemSchema.parse(contact);
-        } catch {
+        if (!contact.name || !contact.phone || !contact.role) {
+          return false;
+        }
+        const cleanPhone = contact.phone.replace(/\D/g, '');
+        if (cleanPhone.length !== 10 && cleanPhone.length !== 11) {
           return false;
         }
       }
