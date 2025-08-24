@@ -74,6 +74,7 @@ const formatPhone = (value: string): string => {
 };
 
 // Schema individual para cada contato
+// Schema para contato completo (usado quando há dados)
 const contactItemSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string()
@@ -83,10 +84,30 @@ const contactItemSchema = z.object({
   role: z.string().min(1, "Cargo é obrigatório")
 });
 
+// Schema para contato que pode estar vazio
+const optionalContactSchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+  role: z.string()
+}).refine((contact) => {
+  // Se qualquer campo estiver preenchido, todos devem estar preenchidos
+  const hasAnyField = contact.name || contact.phone || contact.role;
+  if (!hasAnyField) return true; // Contato completamente vazio é válido
+  
+  // Se há algum campo, valida como contato completo
+  try {
+    contactItemSchema.parse(contact);
+    return true;
+  } catch {
+    return false;
+  }
+}, {
+  message: "Se preencher algum campo do contato, todos os campos são obrigatórios"
+});
+
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true; // CNPJ é opcional
+  cnpj: z.string().min(1, "CNPJ é obrigatório").refine((val) => {
     return isValidCNPJ(val);
   }, {
     message: "CNPJ inválido. Verifique os dígitos digitados."
@@ -101,7 +122,42 @@ const companySchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   website: z.string().optional(),
   type: z.string().optional(),
-  contacts: z.array(contactItemSchema).min(1, "Pelo menos um contato é obrigatório").max(3, "Máximo 3 contatos permitidos")
+  contacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string(),
+    role: z.string()
+  })).length(3).refine((contacts) => {
+    // Primeiro contato deve estar completo
+    const firstContact = contacts[0];
+    if (!firstContact.name || !firstContact.phone || !firstContact.role) {
+      return false;
+    }
+    
+    // Validar primeiro contato
+    try {
+      contactItemSchema.parse(firstContact);
+    } catch {
+      return false;
+    }
+    
+    // Validar outros contatos (se preenchidos)
+    for (let i = 1; i < contacts.length; i++) {
+      const contact = contacts[i];
+      const hasAnyField = contact.name || contact.phone || contact.role;
+      
+      if (hasAnyField) {
+        try {
+          contactItemSchema.parse(contact);
+        } catch {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }, {
+    message: "Primeiro contato é obrigatório. Se preencher outros contatos, todos os campos são obrigatórios."
+  })
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
