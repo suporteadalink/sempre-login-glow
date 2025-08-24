@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal, Plus, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
+import { OpportunityCompanyForm } from "@/components/opportunities/OpportunityCompanyForm";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -351,19 +352,25 @@ export default function Pipeline() {
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar Nova Oportunidade
+              Novo Lead
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingOpportunity ? "Editar Oportunidade" : "Nova Oportunidade"}
+                {editingOpportunity ? "Editar Oportunidade" : "Novo Lead"}
               </DialogTitle>
             </DialogHeader>
-            <OpportunityForm
-              opportunity={editingOpportunity}
-              onSuccess={handleDialogClose}
-            />
+            {editingOpportunity ? (
+              <OpportunityForm
+                opportunity={editingOpportunity}
+                onSuccess={handleDialogClose}
+              />
+            ) : (
+              <OpportunityCompanyForm
+                onSuccess={handleDialogClose}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>

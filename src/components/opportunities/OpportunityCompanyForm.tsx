@@ -1,0 +1,595 @@
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+
+// Utility functions from CompanyForm
+const isValidCNPJ = (cnpj: string): boolean => {
+  cnpj = cnpj.replace(/[^\d]/g, '');
+  
+  if (cnpj.length !== 11 && cnpj.length !== 14) return false;
+  if (/^(\d)\1*$/.test(cnpj)) return false;
+  
+  if (cnpj.length === 11) {
+    const weights1 = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+    const weights2 = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+    
+    let sum = cnpj.slice(0, 9).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights1[i], 0);
+    let checkDigit1 = 11 - (sum % 11);
+    if (checkDigit1 >= 10) checkDigit1 = 0;
+    
+    sum = cnpj.slice(0, 10).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights2[i], 0);
+    let checkDigit2 = 11 - (sum % 11);
+    if (checkDigit2 >= 10) checkDigit2 = 0;
+    
+    return parseInt(cnpj[9]) === checkDigit1 && parseInt(cnpj[10]) === checkDigit2;
+  }
+  
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  
+  let sum = cnpj.slice(0, 12).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights1[i], 0);
+  let checkDigit1 = 11 - (sum % 11);
+  if (checkDigit1 < 2) checkDigit1 = 0;
+  else checkDigit1 = 11 - checkDigit1;
+  
+  sum = cnpj.slice(0, 13).split('').reduce((acc, digit, i) => acc + parseInt(digit) * weights2[i], 0);
+  let checkDigit2 = 11 - (sum % 11);
+  if (checkDigit2 < 2) checkDigit2 = 0;
+  else checkDigit2 = 11 - checkDigit2;
+  
+  return parseInt(cnpj[12]) === checkDigit1 && parseInt(cnpj[13]) === checkDigit2;
+};
+
+const formatCNPJ = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+};
+
+const formatPhone = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+};
+
+// Contact schema
+const contactItemSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  phone: z.string()
+    .min(1, "Telefone é obrigatório")
+    .transform(formatPhone)
+    .refine((val) => val.replace(/\D/g, '').length >= 10, "Telefone deve ter pelo menos 10 dígitos"),
+  role: z.string().min(1, "Cargo é obrigatório")
+});
+
+// Optional contact schema
+const optionalContactSchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+  role: z.string()
+}).refine((contact) => {
+  const hasAnyField = contact.name || contact.phone || contact.role;
+  if (!hasAnyField) return true;
+  
+  try {
+    contactItemSchema.parse(contact);
+    return true;
+  } catch {
+    return false;
+  }
+}, {
+  message: "Se preencher algum campo do contato, todos os campos são obrigatórios"
+});
+
+// Unified form schema
+const opportunityCompanySchema = z.object({
+  // Company data
+  name: z.string().min(1, "Nome da empresa é obrigatório"),
+  cnpj: z.string().min(1, "CNPJ é obrigatório").refine((val) => {
+    return isValidCNPJ(val);
+  }, {
+    message: "CNPJ inválido. Verifique os dígitos digitados."
+  }),
+  phone: z.string().optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  website: z.string().optional(),
+  sector: z.string().optional(),
+  size: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  annual_revenue: z.string().min(1, "Receita anual é obrigatória"),
+  
+  // Contacts (3 contacts, first mandatory)
+  contacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string(),
+    role: z.string()
+  })).length(3).refine((contacts) => {
+    const firstContact = contacts[0];
+    if (!firstContact.name || !firstContact.phone || !firstContact.role) {
+      return false;
+    }
+    
+    try {
+      contactItemSchema.parse(firstContact);
+    } catch {
+      return false;
+    }
+    
+    for (let i = 1; i < contacts.length; i++) {
+      const contact = contacts[i];
+      const hasAnyField = contact.name || contact.phone || contact.role;
+      
+      if (hasAnyField) {
+        try {
+          contactItemSchema.parse(contact);
+        } catch {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  }, {
+    message: "Primeiro contato é obrigatório. Se preencher outros contatos, todos os campos são obrigatórios."
+  }),
+  
+  // Opportunity data
+  probability: z.string().optional(),
+  expected_close_date: z.string().optional(),
+  description: z.string().optional()
+});
+
+type OpportunityCompanyFormData = z.infer<typeof opportunityCompanySchema>;
+
+interface OpportunityCompanyFormProps {
+  onSuccess: () => void;
+}
+
+export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const form = useForm<OpportunityCompanyFormData>({
+    resolver: zodResolver(opportunityCompanySchema),
+    defaultValues: {
+      name: "",
+      cnpj: "",
+      phone: "",
+      email: "",
+      website: "",
+      sector: "",
+      size: "",
+      city: "",
+      state: "",
+      annual_revenue: "",
+      contacts: [
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" }
+      ],
+      probability: "",
+      expected_close_date: "",
+      description: ""
+    },
+  });
+
+  // Get first pipeline stage (Novo Lead)
+  const { data: firstStage } = useQuery({
+    queryKey: ["first-pipeline-stage"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pipeline_stages")
+        .select("id")
+        .order("order")
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: OpportunityCompanyFormData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      if (!firstStage) throw new Error("Primeiro estágio do pipeline não encontrado");
+
+      // Start transaction - create company first
+      const companyData = {
+        name: data.name,
+        cnpj: data.cnpj,
+        phone: data.phone || null,
+        email: data.email || null,
+        website: data.website || null,
+        sector: data.sector || null,
+        size: data.size || null,
+        city: data.city || null,
+        state: data.state || null,
+        annual_revenue: parseFloat(data.annual_revenue),
+        type: "Lead", // Always start as Lead
+        owner_id: user.id,
+      };
+
+      const { data: company, error: companyError } = await supabase
+        .from("companies")
+        .insert([companyData])
+        .select()
+        .single();
+
+      if (companyError) throw companyError;
+
+      // Create contacts
+      const validContacts = data.contacts.filter(contact => 
+        contact.name && contact.phone && contact.role
+      );
+
+      const contactsToInsert = validContacts.map(contact => ({
+        name: contact.name,
+        phone: contact.phone,
+        role: contact.role,
+        company_id: company.id,
+        owner_id: user.id,
+      }));
+
+      const { data: createdContacts, error: contactsError } = await supabase
+        .from("contacts")
+        .insert(contactsToInsert)
+        .select();
+
+      if (contactsError) throw contactsError;
+
+      // Create opportunity
+      const opportunityData = {
+        title: data.name, // Company name becomes opportunity title
+        value: parseFloat(data.annual_revenue), // Annual revenue becomes opportunity value
+        probability: data.probability ? parseFloat(data.probability) : null,
+        expected_close_date: data.expected_close_date || null,
+        description: data.description || null,
+        company_id: company.id,
+        contact_id: createdContacts[0]?.id || null, // First contact
+        stage_id: firstStage.id, // Always "Novo Lead"
+        owner_id: user.id,
+      };
+
+      const { error: opportunityError } = await supabase
+        .from("opportunities")
+        .insert([opportunityData]);
+
+      if (opportunityError) throw opportunityError;
+
+      return { company, contacts: createdContacts };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      toast({
+        title: "Sucesso",
+        description: "Novo lead criado com sucesso",
+      });
+      onSuccess();
+    },
+    onError: (error) => {
+      console.error("Error creating opportunity with company:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar novo lead",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const onSubmit = (data: OpportunityCompanyFormData) => {
+    mutation.mutate(data);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Dados da Empresa */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Dados da Empresa</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome da Empresa</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Digite o nome da empresa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="cnpj"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>CNPJ</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="00.000.000/0000-00"
+                      {...field}
+                      onChange={(e) => field.onChange(formatCNPJ(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="annual_revenue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Receita Anual (R$)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      placeholder="0,00" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="(00) 00000-0000"
+                      {...field}
+                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="email@empresa.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="website"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website</FormLabel>
+                  <FormControl>
+                    <Input placeholder="www.empresa.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sector"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Setor</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Tecnologia" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="size"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tamanho</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Pequena, Média, Grande" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cidade</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Digite a cidade" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Digite o estado" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Contatos */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Contatos (Primeiro obrigatório)</h3>
+          <div className="space-y-6">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground">
+                  Contato {index + 1} {index === 0 && "(Obrigatório)"}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name={`contacts.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome do contato" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`contacts.${index}.phone`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="(00) 00000-0000"
+                            {...field}
+                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`contacts.${index}.role`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cargo</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Gerente" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Detalhes da Oportunidade */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Detalhes da Oportunidade</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="probability"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Probabilidade (%)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      max="100"
+                      placeholder="0" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="expected_close_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data de Fechamento Esperada</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem className="mt-4">
+                <FormLabel>Descrição</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Descreva os detalhes da oportunidade"
+                    rows={3}
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? "Criando..." : "Criar Novo Lead"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
