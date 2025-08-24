@@ -78,8 +78,8 @@ export function AppSidebar() {
                   <SidebarMenuButton 
                     asChild
                     className={`
-                      w-full justify-start px-3 py-2 text-zinc-300 hover:bg-zinc-800 hover:text-white
-                      ${isActive(item.url) ? "bg-zinc-800 text-white border-r-2 border-primary" : ""}
+                      w-full justify-start px-3 py-2 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors
+                      ${isActive(item.url) ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border-r-2 border-yellow-400" : ""}
                     `}
                   >
                     <NavLink to={item.url} className="flex items-center space-x-3">
