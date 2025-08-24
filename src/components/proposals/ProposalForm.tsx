@@ -288,35 +288,34 @@ export function ProposalForm({ proposal, onSuccess, onCancel }: ProposalFormProp
             control={form.control}
             name="project_id"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Projeto *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um projeto" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {projects.length === 0 && selectedCompanyId ? (
-                      <SelectItem value="" disabled>
-                        Nenhum projeto ativo encontrado
-                      </SelectItem>
-                    ) : (
-                      projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id.toString()}>
-                          {project.project_code ? `${project.project_code} - ` : ''}{project.title}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-                {!selectedCompanyId && (
-                  <p className="text-sm text-muted-foreground">
-                    Selecione um cliente primeiro
-                  </p>
-                )}
-              </FormItem>
+            <FormItem>
+              <FormLabel>Projeto *</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCompanyId || projects.length === 0}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um projeto" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.project_code ? `${project.project_code} - ` : ''}{project.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+              {!selectedCompanyId && (
+                <p className="text-sm text-muted-foreground">
+                  Selecione um cliente primeiro
+                </p>
+              )}
+              {selectedCompanyId && projects.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum projeto ativo encontrado para este cliente
+                </p>
+              )}
+            </FormItem>
             )}
           />
 
