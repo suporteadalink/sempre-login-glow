@@ -10,7 +10,7 @@ import Login from "./pages/Login";
 import Pipeline from "./pages/Pipeline";
 import Projects from "./pages/Projects";
 import Companies from "./pages/Companies";
-import Contacts from "./pages/Contacts";
+
 import Tasks from "./pages/Tasks";
 import Proposals from "./pages/Proposals";
 import Settings from "./pages/Settings";
@@ -34,7 +34,7 @@ const App = () => (
                   <Route path="/pipeline" element={<Pipeline />} />
                   <Route path="/projetos" element={<Projects />} />
                   <Route path="/empresas" element={<Companies />} />
-                  <Route path="/contatos" element={<Contacts />} />
+                  
                   <Route path="/tarefas" element={<Tasks />} />
                   <Route path="/propostas" element={<Proposals />} />
                   <Route path="/configuracoes" element={<Settings />} />

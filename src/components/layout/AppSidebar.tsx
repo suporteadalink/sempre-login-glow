@@ -33,7 +33,7 @@ const navigationItems = [
   { title: "Pipeline", url: "/pipeline", icon: Target },
   { title: "Projetos", url: "/projetos", icon: FolderOpen },
   { title: "Empresas", url: "/empresas", icon: Building2 },
-  { title: "Contatos", url: "/contatos", icon: Users },
+  
   { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
