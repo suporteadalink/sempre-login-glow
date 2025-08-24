@@ -37,6 +37,9 @@ const Index = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [goalProgress, setGoalProgress] = useState<any>(null);
+  const [leadsGoalProgress, setLeadsGoalProgress] = useState<any>(null);
+  const [projectsGoalProgress, setProjectsGoalProgress] = useState<any>(null);
+  const [conversionGoalProgress, setConversionGoalProgress] = useState<any>(null);
   const [loadingGoal, setLoadingGoal] = useState(true);
   const [pipelineData, setPipelineData] = useState<any[]>([]);
   const [conversionTrend, setConversionTrend] = useState<any[]>([]);
@@ -60,6 +63,9 @@ const Index = () => {
       fetchPendingTasks();
       fetchRecentActivities();
       fetchGoalProgress();
+      fetchLeadsGoalProgress();
+      fetchProjectsGoalProgress();
+      fetchConversionGoalProgress();
       fetchChartsData();
     }
   }, [user]);
@@ -138,10 +144,7 @@ const Index = () => {
         console.error('Erro ao buscar progresso da meta:', error);
         setGoalProgress(null);
       } else if (goalProgress) { 
-        // 'goalProgress' será um objeto como:
-        // { targetValue: 50000, currentValue: 15000, progressPercentage: 30, goalName: 'Meta de Vendas Agosto' }
-        // ou NULL se não houver meta.
-        setGoalProgress(goalProgress); // Salva os dados da meta em um estado
+        setGoalProgress(goalProgress);
       } else {
         setGoalProgress(null);
       }
@@ -150,6 +153,39 @@ const Index = () => {
       setGoalProgress(null);
     } finally {
       setLoadingGoal(false);
+    }
+  }
+
+  async function fetchLeadsGoalProgress() {
+    try {
+      // @ts-ignore - Function exists in database but not in types
+      const { data, error } = await supabase.rpc('get_leads_goal_progress');
+      if (error) throw error;
+      setLeadsGoalProgress(data);
+    } catch (error) {
+      console.error('Erro ao buscar progresso da meta de leads:', error);
+    }
+  }
+
+  async function fetchProjectsGoalProgress() {
+    try {
+      // @ts-ignore - Function exists in database but not in types
+      const { data, error } = await supabase.rpc('get_projects_goal_progress');
+      if (error) throw error;
+      setProjectsGoalProgress(data);
+    } catch (error) {
+      console.error('Erro ao buscar progresso da meta de projetos:', error);
+    }
+  }
+
+  async function fetchConversionGoalProgress() {
+    try {
+      // @ts-ignore - Function exists in database but not in types
+      const { data, error } = await supabase.rpc('get_conversion_goal_progress');
+      if (error) throw error;
+      setConversionGoalProgress(data);
+    } catch (error) {
+      console.error('Erro ao buscar progresso da meta de conversão:', error);
     }
   }
 
@@ -194,6 +230,9 @@ const Index = () => {
     fetchPendingTasks();
     fetchRecentActivities();
     fetchGoalProgress();
+    fetchLeadsGoalProgress();
+    fetchProjectsGoalProgress();
+    fetchConversionGoalProgress();
     fetchChartsData();
     setIsCompanyModalOpen(false);
     setIsOpportunityModalOpen(false);
@@ -362,44 +401,196 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Goal Progress Section */}
-      {goalProgress && (
-        <Card className="transition-all hover:shadow-medium">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 rounded-lg bg-gradient-primary">
-                  <TrendingUp className="h-6 w-6 text-white" />
+      {/* Seção de Metas */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-foreground">Minhas Metas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Meta de Valor */}
+          {goalProgress && (
+            <Card className="shadow-soft">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-foreground">Meta de Receita</h3>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {goalProgress.goalName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Progresso da meta atual
-                  </p>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-foreground">{goalProgress.goalName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {goalProgress.progressPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={goalProgress.progressPercentage} className="h-2" />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Atual:</span>
+                      <span className="font-semibold text-primary">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL'
+                        }).format(goalProgress.currentValue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Meta:</span>
+                      <span>
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL'
+                        }).format(goalProgress.targetValue)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Período:</span>
+                      <span>
+                        {new Date(goalProgress.startDate).toLocaleDateString('pt-BR')} - {new Date(goalProgress.endDate).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-foreground">
-                  {goalProgress.progressPercentage}%
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  R$ {new Intl.NumberFormat('pt-BR').format(goalProgress.currentValue)} / R$ {new Intl.NumberFormat('pt-BR').format(goalProgress.targetValue)}
-                </p>
-              </div>
-            </div>
-            <Progress 
-              value={goalProgress.progressPercentage} 
-              className="h-3"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Início: {new Date(goalProgress.startDate).toLocaleDateString('pt-BR')}</span>
-              <span>Fim: {new Date(goalProgress.endDate).toLocaleDateString('pt-BR')}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meta de Leads */}
+          {leadsGoalProgress && (
+            <Card className="shadow-soft">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="h-5 w-5 text-blue-500" />
+                  <h3 className="text-lg font-semibold text-foreground">Meta de Novos Leads</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-foreground">{leadsGoalProgress.goalName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {leadsGoalProgress.progressPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={leadsGoalProgress.progressPercentage} className="h-2" />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Atual:</span>
+                      <span className="font-semibold text-blue-500">
+                        {leadsGoalProgress.currentValue} leads
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Meta:</span>
+                      <span>
+                        {leadsGoalProgress.targetValue} leads
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Período:</span>
+                      <span>
+                        {new Date(leadsGoalProgress.startDate).toLocaleDateString('pt-BR')} - {new Date(leadsGoalProgress.endDate).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meta de Projetos */}
+          {projectsGoalProgress && (
+            <Card className="shadow-soft">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <h3 className="text-lg font-semibold text-foreground">Meta de Projetos Fechados</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-foreground">{projectsGoalProgress.goalName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {projectsGoalProgress.progressPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={projectsGoalProgress.progressPercentage} className="h-2" />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Atual:</span>
+                      <span className="font-semibold text-green-500">
+                        {projectsGoalProgress.currentValue} projetos
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Meta:</span>
+                      <span>
+                        {projectsGoalProgress.targetValue} projetos
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Período:</span>
+                      <span>
+                        {new Date(projectsGoalProgress.startDate).toLocaleDateString('pt-BR')} - {new Date(projectsGoalProgress.endDate).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meta de Conversão */}
+          {conversionGoalProgress && (
+            <Card className="shadow-soft">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="h-5 w-5 text-purple-500" />
+                  <h3 className="text-lg font-semibold text-foreground">Meta de Taxa de Conversão</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-foreground">{conversionGoalProgress.goalName}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {conversionGoalProgress.progressPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={conversionGoalProgress.progressPercentage} className="h-2" />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Taxa Atual:</span>
+                      <span className="font-semibold text-purple-500">
+                        {conversionGoalProgress.currentValue.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Meta:</span>
+                      <span>
+                        {conversionGoalProgress.targetValue}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Leads:</span>
+                      <span>
+                        {conversionGoalProgress.convertedLeads}/{conversionGoalProgress.totalLeads}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span>Período:</span>
+                      <span>
+                        {new Date(conversionGoalProgress.startDate).toLocaleDateString('pt-BR')} - {new Date(conversionGoalProgress.endDate).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

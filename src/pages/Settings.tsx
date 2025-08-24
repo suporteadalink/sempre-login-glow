@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Pencil, Trash2, Plus, Users, Settings as SettingsIcon, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ interface User {
 interface Goal {
   id: number;
   name: string;
+  goal_type?: 'valor' | 'leads' | 'projetos' | 'conversao';
   target_value: number;
   start_date: string;
   end_date: string;
@@ -68,6 +70,7 @@ export default function Settings() {
   const [formData, setFormData] = useState({
     name: '',
     user_id: '',
+    goal_type: 'valor' as 'valor' | 'leads' | 'projetos' | 'conversao',
     target_value: '',
     start_date: null as Date | null,
     end_date: null as Date | null,
@@ -182,7 +185,7 @@ export default function Settings() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setGoals(goals || []);
+      setGoals((goals as any) || []);
     } catch (error) {
       console.error('Erro ao buscar metas:', error);
       toast({
@@ -229,6 +232,7 @@ export default function Settings() {
       const goalData = {
         name: formData.name,
         user_id: formData.user_id,
+        goal_type: formData.goal_type,
         target_value: parseFloat(formData.target_value),
         start_date: format(formData.start_date, 'yyyy-MM-dd'),
         end_date: format(formData.end_date, 'yyyy-MM-dd'),
@@ -262,6 +266,7 @@ export default function Settings() {
       setFormData({
         name: '',
         user_id: '',
+        goal_type: 'valor',
         target_value: '',
         start_date: null,
         end_date: null,
@@ -285,6 +290,7 @@ export default function Settings() {
     setFormData({
       name: goal.name,
       user_id: goal.user_id,
+      goal_type: goal.goal_type || 'valor',
       target_value: goal.target_value.toString(),
       start_date: new Date(goal.start_date),
       end_date: new Date(goal.end_date),
@@ -321,6 +327,7 @@ export default function Settings() {
     setFormData({
       name: '',
       user_id: '',
+      goal_type: 'valor',
       target_value: '',
       start_date: null,
       end_date: null,
@@ -761,14 +768,42 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="target_value">Valor da Meta (R$)</Label>
+                  <Label htmlFor="goal_type">Tipo de Meta</Label>
+                  <Select
+                    value={formData.goal_type}
+                    onValueChange={(value: 'valor' | 'leads' | 'projetos' | 'conversao') => 
+                      setFormData({ ...formData, goal_type: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="valor">Meta de Valor (R$)</SelectItem>
+                      <SelectItem value="leads">Meta de Novos Leads</SelectItem>
+                      <SelectItem value="projetos">Meta de Projetos Fechados</SelectItem>
+                      <SelectItem value="conversao">Meta de Taxa de Conversão (%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="target_value">
+                    {formData.goal_type === 'valor' && 'Valor da Meta (R$)'}
+                    {formData.goal_type === 'leads' && 'Quantidade de Leads'}
+                    {formData.goal_type === 'projetos' && 'Quantidade de Projetos'}
+                    {formData.goal_type === 'conversao' && 'Taxa de Conversão (%)'}
+                  </Label>
                   <Input
                     id="target_value"
                     type="number"
-                    step="0.01"
+                    step={formData.goal_type === 'valor' ? "0.01" : "1"}
                     value={formData.target_value}
                     onChange={(e) => setFormData({ ...formData, target_value: e.target.value })}
-                    placeholder="0,00"
+                    placeholder={
+                      formData.goal_type === 'valor' ? '0,00' :
+                      formData.goal_type === 'conversao' ? '85' : '10'
+                    }
                     required
                   />
                 </div>
@@ -857,6 +892,7 @@ export default function Settings() {
                     <TableRow>
                       <TableHead>Nome da Meta</TableHead>
                       <TableHead>Vendedor</TableHead>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Valor da Meta</TableHead>
                       <TableHead>Data de Início</TableHead>
                       <TableHead>Data de Término</TableHead>
@@ -866,7 +902,7 @@ export default function Settings() {
                   <TableBody>
                     {goals.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           Nenhuma meta cadastrada
                         </TableCell>
                       </TableRow>
@@ -876,10 +912,23 @@ export default function Settings() {
                           <TableCell className="font-medium">{goal.name}</TableCell>
                           <TableCell>{goal.users?.name || 'N/A'}</TableCell>
                           <TableCell>
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL'
-                            }).format(goal.target_value)}
+                            <Badge variant="outline">
+                              {goal.goal_type === 'valor' && 'Valor'}
+                              {goal.goal_type === 'leads' && 'Leads'}
+                              {goal.goal_type === 'projetos' && 'Projetos'}
+                              {goal.goal_type === 'conversao' && 'Conversão'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {goal.goal_type === 'valor' && 
+                              new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(goal.target_value)
+                            }
+                            {goal.goal_type === 'leads' && `${goal.target_value} leads`}
+                            {goal.goal_type === 'projetos' && `${goal.target_value} projetos`}
+                            {goal.goal_type === 'conversao' && `${goal.target_value}%`}
                           </TableCell>
                           <TableCell>
                             {format(new Date(goal.start_date), "dd/MM/yyyy", { locale: ptBR })}

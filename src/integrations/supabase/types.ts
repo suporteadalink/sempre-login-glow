@@ -196,6 +196,7 @@ export type Database = {
         Row: {
           created_at: string | null
           end_date: string
+          goal_type: string
           id: number
           name: string
           start_date: string
@@ -205,6 +206,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           end_date: string
+          goal_type?: string
           id?: never
           name: string
           start_date: string
@@ -214,6 +216,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           end_date?: string
+          goal_type?: string
           id?: never
           name?: string
           start_date?: string
@@ -607,6 +610,10 @@ export type Database = {
         Args: { company_id_param: number }
         Returns: boolean
       }
+      get_conversion_goal_progress: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_conversion_trend: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -615,11 +622,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_leads_goal_progress: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_my_goal_progress: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
       get_pipeline_distribution: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_projects_goal_progress: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
