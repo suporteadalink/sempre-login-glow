@@ -198,6 +198,7 @@ const opportunityCompanySchema = z.object({
   }),
   
   // Opportunity data
+  opportunity_title: z.string().min(1, "Título da oportunidade é obrigatório"),
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
   description: z.string().optional(),
@@ -234,6 +235,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         { name: "", phone: "", role: "" },
         { name: "", phone: "", role: "" }
       ],
+      opportunity_title: "",
       probability: "",
       expected_close_date: "",
       description: "",
@@ -299,7 +301,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         state: data.state || null,
         annual_revenue: parseFloat(data.annual_revenue),
         type: "Lead", // Always start as Lead
-        owner_id: user.id,
+        owner_id: opportunityOwnerId, // Ensure company and opportunity have same owner
       };
 
       const { data: company, error: companyError } = await supabase
@@ -320,7 +322,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         phone: contact.phone,
         role: contact.role,
         company_id: company.id,
-        owner_id: user.id,
+        owner_id: opportunityOwnerId, // Ensure contacts have same owner as opportunity
       }));
 
       const { data: createdContacts, error: contactsError } = await supabase
@@ -332,7 +334,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
 
       // Create opportunity
       const opportunityData = {
-        title: data.name, // Company name becomes opportunity title
+        title: data.opportunity_title, // Custom opportunity title
         value: parseFloat(data.annual_revenue), // Annual revenue becomes opportunity value
         probability: data.probability ? parseFloat(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
@@ -631,6 +633,20 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         <div>
           <h3 className="text-lg font-semibold mb-4">Detalhes da Oportunidade</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="opportunity_title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Título da Oportunidade</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Digite o título da oportunidade" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="probability"

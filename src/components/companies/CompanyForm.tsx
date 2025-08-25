@@ -10,6 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSalespeople } from "@/hooks/useSalespeople";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 // Função para validar CNPJ usando o algoritmo oficial brasileiro
 const isValidCNPJ = (cnpj: string): boolean => {
@@ -121,7 +125,11 @@ const companySchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   website: z.string().optional(),
-  type: z.string().optional(),
+  type: z.string().min(1, "Tipo é obrigatório"),
+  // Campos específicos para Lead
+  owner_id: z.string().optional(),
+  stage_id: z.string().optional(),
+  opportunity_title: z.string().optional(),
   contacts: z.array(z.object({
     name: z.string(),
     phone: z.string(),
@@ -158,6 +166,15 @@ const companySchema = z.object({
   }, {
     message: "Primeiro contato é obrigatório. Se preencher outros contatos, todos os campos são obrigatórios."
   })
+}).refine((data) => {
+  // Se tipo é Lead, título da oportunidade é obrigatório
+  if (data.type === "Lead" && !data.opportunity_title?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Título da oportunidade é obrigatório para empresas do tipo Lead",
+  path: ["opportunity_title"]
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -187,6 +204,29 @@ interface CompanyFormProps {
 export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: salespeople = [] } = useSalespeople();
+  const { data: pipelineStages = [] } = usePipelineStages();
+
+  // Get user role
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+    enabled: !!user?.id
+  });
+
+  const isAdmin = userRole === 'admin';
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -203,6 +243,9 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       email: "",
       website: "",
       type: "",
+      owner_id: "",
+      stage_id: "",
+      opportunity_title: "",
       contacts: [
         { name: "", phone: "", role: "" },
         { name: "", phone: "", role: "" },
@@ -210,6 +253,9 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       ]
     },
   });
+
+  // Watch the type field to show/hide Lead-specific fields
+  const watchedType = form.watch("type");
 
   useEffect(() => {
     if (company) {
@@ -226,6 +272,9 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         email: company.email || "",
         website: company.website || "",
         type: company.type || "",
+        owner_id: "",
+        stage_id: "",
+        opportunity_title: "",
         contacts: [
           { name: "", phone: "", role: "" },
           { name: "", phone: "", role: "" },
@@ -238,6 +287,12 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
   const onSubmit = async (data: CompanyFormData) => {
     setLoading(true);
     try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Usuário não autenticado");
+
+      // Determine company owner (admin can assign, vendedor = current user)
+      const companyOwnerId = isAdmin && data.owner_id ? data.owner_id : currentUser.id;
+
       const submitData = {
         name: data.name,
         email: data.email || null,
@@ -251,6 +306,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         type: data.type || null,
         number_of_employees: data.number_of_employees || null,
         annual_revenue: data.annual_revenue || null,
+        owner_id: companyOwnerId,
       };
 
       if (company) {
@@ -265,60 +321,82 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           title: "Sucesso",
           description: "Empresa atualizada com sucesso.",
         });
-} else {
-        // 1. PEGUE O USUÁRIO LOGADO PRIMEIRO
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // 2. INSIRA A EMPRESA E RECEBA O ID
+      } else {
+        // Create company
         const { data: newCompany, error: companyError } = await supabase
           .from('companies')
-          .insert({
-            ...submitData,
-            owner_id: user.id
-          })
+          .insert(submitData)
           .select()
           .single();
 
         if (companyError) throw companyError;
 
-        // 3. FILTRA CONTATOS VÁLIDOS (com pelo menos nome preenchido)
+        // Create contacts
         const validContacts = data.contacts.filter(contact => 
           contact.name.trim() !== "" || contact.phone.trim() !== "" || contact.role.trim() !== ""
         );
 
-        // 4. VALIDA E INSERE OS CONTATOS
+        let createdContacts = [];
         if (validContacts.length > 0) {
           for (const contact of validContacts) {
             const validatedContact = contactItemSchema.parse(contact);
-            const { error: contactError } = await supabase
+            const { data: createdContact, error: contactError } = await supabase
               .from('contacts')
               .insert({
                 name: validatedContact.name,
                 phone: validatedContact.phone,
                 role: validatedContact.role,
                 company_id: newCompany.id,
-                owner_id: user.id
-              });
+                owner_id: companyOwnerId
+              })
+              .select()
+              .single();
 
             if (contactError) throw contactError;
+            if (createdContact) createdContacts.push(createdContact);
           }
         }
 
-        toast({
-          title: "Sucesso",
-          description: `Empresa criada com ${validContacts.length} contato(s) adicionado(s).`,
-        });
+        // If type is Lead, create opportunity automatically
+        if (data.type === "Lead" && data.opportunity_title && data.stage_id) {
+          const { error: opportunityError } = await supabase
+            .from('opportunities')
+            .insert({
+              title: data.opportunity_title,
+              value: data.annual_revenue || 0,
+              company_id: newCompany.id,
+              contact_id: createdContacts.length > 0 ? createdContacts[0].id : null,
+              stage_id: parseInt(data.stage_id),
+              owner_id: companyOwnerId,
+              description: `Oportunidade criada automaticamente para empresa ${data.name}`
+            });
+
+          if (opportunityError) throw opportunityError;
+
+          toast({
+            title: "Sucesso",
+            description: `Empresa Lead criada com oportunidade "${data.opportunity_title}" e ${validContacts.length} contato(s).`,
+          });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: `Empresa criada com ${validContacts.length} contato(s) adicionado(s).`,
+          });
+        }
       }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
 
       onSuccess();
     } catch (error: any) {
       console.error('Error saving company:', error);
       
-      // Verificar se é erro de violação de constraint única (código 23505)
       let errorMessage = "Não foi possível salvar a empresa.";
       
       if (error?.code === '23505') {
-        // Erro de violação de constraint única
         if (error.message?.includes('companies_name_unique')) {
           errorMessage = "Erro: Já existe uma empresa cadastrada com este nome.";
         } else {
@@ -537,7 +615,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo</FormLabel>
+                  <FormLabel>Tipo *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -554,6 +632,82 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                 </FormItem>
               )}
             />
+
+            {/* Campos específicos para admin */}
+            {isAdmin && (
+              <FormField
+                control={form.control}
+                name="owner_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendedor Responsável</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o vendedor (deixe vazio para você mesmo)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {salespeople.map((salesperson) => (
+                          <SelectItem key={salesperson.id} value={salesperson.id}>
+                            {salesperson.name} ({salesperson.role})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Campos específicos para Lead */}
+            {watchedType === "Lead" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="stage_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Etapa do Funil</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        defaultValue={pipelineStages.find(stage => stage.name === "Novo Lead")?.id.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a etapa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {pipelineStages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id.toString()}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="opportunity_title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Título da Oportunidade *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Digite o título da oportunidade" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
           </div>
 
           {/* Seção de Contatos */}
