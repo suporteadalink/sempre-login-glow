@@ -7,8 +7,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  triggerTaskNotifications: () => void;
-  notificationTrigger: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,23 +23,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notificationTrigger, setNotificationTrigger] = useState(0);
 
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        const wasSignedOut = !user && session?.user;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // Trigger task notifications on successful login
-        if (event === 'SIGNED_IN' || wasSignedOut) {
-          setTimeout(() => {
-            setNotificationTrigger(prev => prev + 1);
-          }, 1000); // Small delay to ensure everything is loaded
-        }
       }
     );
 
@@ -59,17 +48,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
-  const triggerTaskNotifications = () => {
-    setNotificationTrigger(prev => prev + 1);
-  };
-
   const value = {
     user,
     session,
     loading,
     signOut,
-    triggerTaskNotifications,
-    notificationTrigger,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

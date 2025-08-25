@@ -1,6 +1,5 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { TaskNotifications } from "@/components/tasks/TaskNotifications";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -23,8 +22,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </main>
       </div>
-
-      <TaskNotifications />
     </SidebarProvider>
   );
 }
