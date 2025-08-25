@@ -1,43 +1,12 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { TaskNotificationModal } from "@/components/tasks/TaskNotificationModal";
-import { OverdueTaskBanner } from "@/components/tasks/OverdueTaskBanner";
-import { useTaskNotifications } from "@/hooks/useTaskNotifications";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { TaskNotifications } from "@/components/tasks/TaskNotifications";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, notificationTrigger } = useAuth();
-  const navigate = useNavigate();
-  const {
-    todayTasks,
-    overdueTasks,
-    showTodayModal,
-    checkForLoginNotifications,
-    dismissTodayModal,
-    markTaskComplete,
-  } = useTaskNotifications();
-
-  useEffect(() => {
-    if (user && notificationTrigger > 0) {
-      // Debounce to avoid multiple calls
-      const timer = setTimeout(() => {
-        checkForLoginNotifications();
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [user, notificationTrigger, checkForLoginNotifications]);
-
-  const handleViewAllTasks = () => {
-    dismissTodayModal();
-    navigate("/tarefas");
-  };
 
   return (
     <SidebarProvider>
@@ -50,22 +19,12 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
           </div>
           <div className="p-6">
-            <OverdueTaskBanner 
-              tasks={overdueTasks} 
-              onMarkComplete={markTaskComplete}
-            />
             {children}
           </div>
         </main>
       </div>
 
-      <TaskNotificationModal
-        isOpen={showTodayModal}
-        onClose={dismissTodayModal}
-        tasks={todayTasks}
-        onMarkComplete={markTaskComplete}
-        onViewAllTasks={handleViewAllTasks}
-      />
+      <TaskNotifications />
     </SidebarProvider>
   );
 }

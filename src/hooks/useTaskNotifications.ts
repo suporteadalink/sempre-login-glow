@@ -155,9 +155,13 @@ export const useTaskNotifications = () => {
   useEffect(() => {
     if (user) {
       // Only fetch overdue tasks on mount, not repeatedly
-      fetchOverdueTasks();
+      const timer = setTimeout(() => {
+        fetchOverdueTasks();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, fetchOverdueTasks]);
+  }, [user]);
 
   return {
     todayTasks,
