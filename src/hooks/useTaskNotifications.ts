@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -29,7 +29,7 @@ export const useTaskNotifications = () => {
   const [loading, setLoading] = useState(false);
   const [showTodayModal, setShowTodayModal] = useState(false);
 
-  const fetchTodayTasks = async () => {
+  const fetchTodayTasks = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -64,9 +64,9 @@ export const useTaskNotifications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchOverdueTasks = async () => {
+  const fetchOverdueTasks = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -95,9 +95,9 @@ export const useTaskNotifications = () => {
     } catch (error) {
       console.error("Erro ao buscar tarefas atrasadas:", error);
     }
-  };
+  }, [user]);
 
-  const checkForLoginNotifications = async () => {
+  const checkForLoginNotifications = useCallback(async () => {
     if (!user) return;
 
     // Check if we should show today's modal
@@ -110,7 +110,7 @@ export const useTaskNotifications = () => {
 
     // Always fetch overdue tasks for the banner
     await fetchOverdueTasks();
-  };
+  }, [user, fetchTodayTasks, fetchOverdueTasks]);
 
   const dismissTodayModal = () => {
     setShowTodayModal(false);
@@ -154,14 +154,10 @@ export const useTaskNotifications = () => {
 
   useEffect(() => {
     if (user) {
-      // Debounce the fetch to avoid multiple calls
-      const timer = setTimeout(() => {
-        fetchOverdueTasks();
-      }, 500);
-      
-      return () => clearTimeout(timer);
+      // Only fetch overdue tasks on mount, not repeatedly
+      fetchOverdueTasks();
     }
-  }, [user]);
+  }, [user, fetchOverdueTasks]);
 
   return {
     todayTasks,
@@ -171,9 +167,9 @@ export const useTaskNotifications = () => {
     checkForLoginNotifications,
     dismissTodayModal,
     markTaskComplete,
-    refreshTasks: () => {
+    refreshTasks: useCallback(() => {
       fetchTodayTasks();
       fetchOverdueTasks();
-    }
+    }, [fetchTodayTasks, fetchOverdueTasks])
   };
 };

@@ -25,9 +25,14 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   useEffect(() => {
     if (user && notificationTrigger > 0) {
-      checkForLoginNotifications();
+      // Debounce to avoid multiple calls
+      const timer = setTimeout(() => {
+        checkForLoginNotifications();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, notificationTrigger]);
+  }, [user, notificationTrigger, checkForLoginNotifications]);
 
   const handleViewAllTasks = () => {
     dismissTodayModal();
