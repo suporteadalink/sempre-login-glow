@@ -79,12 +79,23 @@ const formatPhone = (value: string): string => {
 
 // Função para formatar valor monetário
 const formatCurrency = (value: string): string => {
+  if (!value) return '';
   const numbers = value.replace(/\D/g, '');
-  const amount = parseInt(numbers) / 100;
+  if (!numbers) return '';
+  const amount = parseFloat(numbers) / 100;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL'
+    currency: 'BRL',
+    minimumFractionDigits: 2
   }).format(amount);
+};
+
+// Função para parse de valor monetário
+const parseCurrency = (value: string): number | undefined => {
+  if (!value) return undefined;
+  const numbers = value.replace(/\D/g, '');
+  if (!numbers) return undefined;
+  return parseFloat(numbers) / 100;
 };
 
 // Função para formatar URL de website
@@ -593,11 +604,12 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                   <FormLabel>Receita Anual</FormLabel>
                   <FormControl>
                     <Input 
-                      type="number" 
-                      placeholder="0.00" 
-                      step="0.01"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      placeholder="R$ 0,00" 
+                      value={field.value ? formatCurrency(field.value.toString().replace('.', '')) : ''}
+                      onChange={(e) => {
+                        const parsedValue = parseCurrency(e.target.value);
+                        field.onChange(parsedValue);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
