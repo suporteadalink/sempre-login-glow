@@ -12,7 +12,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { user, notificationTrigger } = useAuth() as any;
+  const { user, notificationTrigger } = useAuth();
   const navigate = useNavigate();
   const {
     todayTasks,

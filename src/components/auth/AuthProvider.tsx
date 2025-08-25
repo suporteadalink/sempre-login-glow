@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   triggerTaskNotifications: () => void;
+  notificationTrigger: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

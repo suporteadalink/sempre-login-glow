@@ -106,11 +106,6 @@ export const useTaskNotifications = () => {
     
     if (lastShown !== today) {
       await fetchTodayTasks();
-      // Only show modal if there are tasks for today
-      if (todayTasks.length > 0) {
-        setShowTodayModal(true);
-        localStorage.setItem(`lastShownTaskModal_${user.id}`, today);
-      }
     }
 
     // Always fetch overdue tasks for the banner
@@ -119,8 +114,10 @@ export const useTaskNotifications = () => {
 
   const dismissTodayModal = () => {
     setShowTodayModal(false);
-    const today = new Date().toDateString();
-    localStorage.setItem(`lastShownTaskModal_${user.id}`, today);
+    if (user) {
+      const today = new Date().toDateString();
+      localStorage.setItem(`lastShownTaskModal_${user.id}`, today);
+    }
   };
 
   const markTaskComplete = async (taskId: number) => {
@@ -142,9 +139,27 @@ export const useTaskNotifications = () => {
     return false;
   };
 
+  // Effect to check for today's tasks and show modal
+  useEffect(() => {
+    if (user && todayTasks.length > 0) {
+      const lastShown = localStorage.getItem(`lastShownTaskModal_${user.id}`);
+      const today = new Date().toDateString();
+      
+      if (lastShown !== today) {
+        setShowTodayModal(true);
+        localStorage.setItem(`lastShownTaskModal_${user.id}`, today);
+      }
+    }
+  }, [todayTasks, user]);
+
   useEffect(() => {
     if (user) {
-      fetchOverdueTasks();
+      // Debounce the fetch to avoid multiple calls
+      const timer = setTimeout(() => {
+        fetchOverdueTasks();
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [user]);
 
