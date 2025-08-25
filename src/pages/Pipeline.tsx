@@ -277,8 +277,18 @@ export default function Pipeline() {
 
   const deleteOpportunityMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { data, error } = await supabase.rpc('delete_opportunity_with_relations', {
-        opportunity_id_param: id
+      // First get the opportunity to find the associated company
+      const { data: opportunity, error: opportunityError } = await supabase
+        .from('opportunities')
+        .select('company_id')
+        .eq('id', id)
+        .single();
+      
+      if (opportunityError) throw opportunityError;
+      
+      // Delete the entire company (which will cascade delete the opportunity and all related data)
+      const { data, error } = await supabase.rpc('delete_company_with_relations', {
+        company_id_param: opportunity.company_id
       });
       
       if (error) throw error;
@@ -343,7 +353,7 @@ export default function Pipeline() {
       return;
     }
     
-    if (confirm("Tem certeza que deseja excluir esta oportunidade?")) {
+    if (confirm("Tem certeza que deseja excluir esta oportunidade e a empresa associada? Esta ação irá remover todos os dados relacionados (contatos, projetos, propostas, etc.) e não pode ser desfeita.")) {
       deleteOpportunityMutation.mutate(id);
     }
   };
