@@ -616,8 +616,8 @@ const Index = () => {
                 }}
                 className="h-48"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                <ResponsiveContainer width="100%" height={192}>
+                  <PieChart width={400} height={192}>
                     <Pie
                       data={pipelineData}
                       cx="50%"
@@ -669,8 +669,8 @@ const Index = () => {
                 }}
                 className="h-48"
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={conversionTrend}>
+                <ResponsiveContainer width="100%" height={192}>
+                  <LineChart data={conversionTrend} width={400} height={192}>
                     <XAxis 
                       dataKey="month"
                       tick={{ fontSize: 12 }}
