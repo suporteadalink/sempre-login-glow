@@ -77,6 +77,41 @@ const formatPhone = (value: string): string => {
   return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
 };
 
+// Função para formatar valor monetário
+const formatCurrency = (value: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  const amount = parseInt(numbers) / 100;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(amount);
+};
+
+// Função para formatar URL de website
+const formatWebsite = (value: string): string => {
+  if (!value) return value;
+  if (!value.startsWith('http://') && !value.startsWith('https://')) {
+    return `https://${value}`;
+  }
+  return value;
+};
+
+// Função para validar email
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Função para validar URL
+const isValidURL = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // Schema individual para cada contato
 // Schema para contato completo (usado quando há dados)
 const contactItemSchema = z.object({
@@ -122,9 +157,24 @@ const companySchema = z.object({
   annual_revenue: z.number().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
-  website: z.string().optional(),
+  phone: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    return /^\(\d{2}\) \d{4,5}-\d{4}$/.test(val);
+  }, {
+    message: "Formato: (11) 93385-1277"
+  }),
+  email: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    return isValidEmail(val);
+  }, {
+    message: "Email inválido"
+  }),
+  website: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    return isValidURL(val);
+  }, {
+    message: "URL inválida"
+  }),
   type: z.string().min(1, "Tipo é obrigatório"),
   // Campos específicos para Lead
   owner_id: z.string().optional(),
@@ -590,7 +640,16 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input placeholder="(00) 00000-0000" {...field} />
+                    <Input 
+                      placeholder="(11) 93385-1277" 
+                      {...field}
+                      onChange={(e) => {
+                        const formattedValue = formatPhone(e.target.value);
+                        field.onChange(formattedValue);
+                        form.trigger("phone");
+                      }}
+                      maxLength={15}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -618,7 +677,17 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                 <FormItem>
                   <FormLabel>Website</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://www.empresa.com" {...field} />
+                    <Input 
+                      placeholder="empresa.com" 
+                      {...field}
+                      onBlur={(e) => {
+                        if (e.target.value) {
+                          const formattedValue = formatWebsite(e.target.value);
+                          field.onChange(formattedValue);
+                          form.trigger("website");
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
