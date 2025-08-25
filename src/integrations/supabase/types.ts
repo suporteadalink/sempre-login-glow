@@ -500,8 +500,10 @@ export type Database = {
           created_at: string | null
           description: string | null
           due_date: string | null
+          estimated_hours: number | null
           id: number
           name: string
+          notes: string | null
           opportunity_id: number | null
           priority: string | null
           project_id: number | null
@@ -515,8 +517,10 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: never
           name: string
+          notes?: string | null
           opportunity_id?: number | null
           priority?: string | null
           project_id?: number | null
@@ -530,8 +534,10 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: never
           name?: string
+          notes?: string | null
           opportunity_id?: number | null
           priority?: string | null
           project_id?: number | null
