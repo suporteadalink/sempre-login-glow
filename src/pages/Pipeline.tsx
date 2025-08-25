@@ -280,6 +280,7 @@ export default function Pipeline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
       toast({
         title: "Sucesso",
         description: "Oportunidade excluída com sucesso",

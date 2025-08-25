@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CompanyForm } from "@/components/companies/CompanyForm";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Company {
   id: number;
@@ -30,8 +30,7 @@ interface Company {
 
 export default function Companies() {
   const { user } = useAuth();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const { toast } = useToast();
@@ -53,32 +52,21 @@ export default function Companies() {
     enabled: !!user?.id
   });
 
-  const isAdmin = userRole === 'admin';
-
-  const fetchCompanies = async () => {
-    try {
+  // Get companies using React Query
+  const { data: companies = [], isLoading: loading } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCompanies(data || []);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as empresas.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      return data as Company[];
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
+  const isAdmin = userRole === 'admin';
 
   const handleDelete = async (id: number) => {
     if (!isAdmin) {
@@ -102,7 +90,9 @@ export default function Companies() {
 
       if (error) throw error;
 
-      setCompanies(companies.filter(company => company.id !== id));
+      // Invalidate and refetch queries
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       toast({
         title: "Sucesso",
         description: "Empresa e todos os dados relacionados foram excluídos com sucesso.",
@@ -128,7 +118,9 @@ export default function Companies() {
   };
 
   const handleFormSuccess = () => {
-    fetchCompanies();
+    // Invalidate queries to refetch data
+    queryClient.invalidateQueries({ queryKey: ["companies"] });
+    queryClient.invalidateQueries({ queryKey: ["opportunities"] });
     handleFormClose();
   };
 
