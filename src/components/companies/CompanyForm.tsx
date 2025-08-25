@@ -291,7 +291,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       if (!currentUser) throw new Error("Usuário não autenticado");
 
       // Determine company owner (admin can assign, vendedor = current user)
-      const companyOwnerId = isAdmin && data.owner_id ? data.owner_id : currentUser.id;
+      const companyOwnerId = isAdmin && data.owner_id && data.owner_id.trim() !== "" ? data.owner_id : currentUser.id;
 
       const submitData = {
         name: data.name,
