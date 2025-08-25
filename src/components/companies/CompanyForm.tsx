@@ -284,6 +284,13 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
     }
   }, [company, form]);
 
+  // Initialize owner_id with current user when not editing
+  useEffect(() => {
+    if (!company && user?.id && isAdmin) {
+      form.setValue("owner_id", user.id);
+    }
+  }, [user?.id, isAdmin, company, form]);
+
   const onSubmit = async (data: CompanyFormData) => {
     setLoading(true);
     try {
