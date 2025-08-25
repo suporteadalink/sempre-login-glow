@@ -1,11 +1,39 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { TaskNotificationModal } from "@/components/tasks/TaskNotificationModal";
+import { OverdueTaskBanner } from "@/components/tasks/OverdueTaskBanner";
+import { useTaskNotifications } from "@/hooks/useTaskNotifications";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { user, notificationTrigger } = useAuth() as any;
+  const navigate = useNavigate();
+  const {
+    todayTasks,
+    overdueTasks,
+    showTodayModal,
+    checkForLoginNotifications,
+    dismissTodayModal,
+    markTaskComplete,
+  } = useTaskNotifications();
+
+  useEffect(() => {
+    if (user && notificationTrigger > 0) {
+      checkForLoginNotifications();
+    }
+  }, [user, notificationTrigger]);
+
+  const handleViewAllTasks = () => {
+    dismissTodayModal();
+    navigate("/tarefas");
+  };
+
   return (
     <SidebarProvider>
       <div className="h-screen flex w-full">
@@ -17,10 +45,22 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
           </div>
           <div className="p-6">
+            <OverdueTaskBanner 
+              tasks={overdueTasks} 
+              onMarkComplete={markTaskComplete}
+            />
             {children}
           </div>
         </main>
       </div>
+
+      <TaskNotificationModal
+        isOpen={showTodayModal}
+        onClose={dismissTodayModal}
+        tasks={todayTasks}
+        onMarkComplete={markTaskComplete}
+        onViewAllTasks={handleViewAllTasks}
+      />
     </SidebarProvider>
   );
 }
