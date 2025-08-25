@@ -371,11 +371,23 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
       });
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error creating opportunity with company:", error);
+      
+      // Check for specific error types
+      let errorMessage = "Erro ao criar novo lead";
+      
+      if (error?.message?.includes("duplicate key value violates unique constraint \"companies_cnpj_key\"")) {
+        errorMessage = "Já existe uma empresa cadastrada com este CNPJ. Verifique se a empresa já não está registrada no sistema.";
+      } else if (error?.message?.includes("companies_cnpj_key")) {
+        errorMessage = "CNPJ já cadastrado no sistema.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro",
-        description: "Erro ao criar novo lead",
+        description: errorMessage,
         variant: "destructive",
       });
     }
