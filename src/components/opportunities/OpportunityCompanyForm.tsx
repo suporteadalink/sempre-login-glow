@@ -307,7 +307,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         size: data.size || null,
         city: data.city || null,
         state: data.state || null,
-        annual_revenue: parseFloat(data.annual_revenue),
+        annual_revenue: parseFloat(data.annual_revenue) / 100, // Fix currency conversion
         type: "Lead", // Always start as Lead
         owner_id: opportunityOwnerId, // Ensure company and opportunity have same owner
       };
@@ -343,7 +343,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
       // Create opportunity
       const opportunityData = {
         title: data.opportunity_title, // Custom opportunity title
-        value: parseFloat(data.annual_revenue), // Annual revenue becomes opportunity value
+        value: parseFloat(data.annual_revenue) / 100, // Fix currency conversion for opportunity
         probability: data.probability ? parseFloat(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
         description: data.description || null,
