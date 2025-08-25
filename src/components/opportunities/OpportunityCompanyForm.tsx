@@ -16,6 +16,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { useSalespeople } from "@/hooks/useSalespeople";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 // Utility functions from CompanyForm
 const isValidCNPJ = (cnpj: string): boolean => {
@@ -198,7 +200,8 @@ const opportunityCompanySchema = z.object({
   // Opportunity data
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
-  description: z.string().optional()
+  description: z.string().optional(),
+  owner_id: z.string().optional()
 });
 
 type OpportunityCompanyFormData = z.infer<typeof opportunityCompanySchema>;
@@ -210,6 +213,8 @@ interface OpportunityCompanyFormProps {
 export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { data: salespeople = [] } = useSalespeople();
 
   const form = useForm<OpportunityCompanyFormData>({
     resolver: zodResolver(opportunityCompanySchema),
@@ -231,9 +236,29 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
       ],
       probability: "",
       expected_close_date: "",
-      description: ""
+      description: "",
+      owner_id: ""
     },
   });
+
+  // Get user role
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+    enabled: !!user?.id
+  });
+
+  const isAdmin = userRole === 'admin';
 
   // Get first pipeline stage (Novo Lead)
   const { data: firstStage } = useQuery({
@@ -257,6 +282,9 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
       if (!user) throw new Error("User not authenticated");
 
       if (!firstStage) throw new Error("Primeiro estágio do pipeline não encontrado");
+
+      // Determine opportunity owner (admin can assign, vendedor uses own id)
+      const opportunityOwnerId = isAdmin && data.owner_id ? data.owner_id : user.id;
 
       // Start transaction - create company first
       const companyData = {
@@ -312,7 +340,7 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
         company_id: company.id,
         contact_id: createdContacts[0]?.id || null, // First contact
         stage_id: firstStage.id, // Always "Novo Lead"
-        owner_id: user.id,
+        owner_id: opportunityOwnerId,
       };
 
       const { error: opportunityError } = await supabase
@@ -682,6 +710,32 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
               </FormItem>
             )}
           />
+          {isAdmin && (
+            <FormField
+              control={form.control}
+              name="owner_id"
+              render={({ field }) => (
+                <FormItem className="mt-4">
+                  <FormLabel>Vendedor Responsável</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Atribuir a um vendedor (deixe vazio para você mesmo)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {salespeople.map((salesperson) => (
+                        <SelectItem key={salesperson.id} value={salesperson.id}>
+                          {salesperson.name} ({salesperson.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <div className="flex justify-end space-x-2 pt-4">

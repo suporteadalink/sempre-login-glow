@@ -9,12 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSalespeople } from "@/hooks/useSalespeople";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 // Limited form schema for editing opportunities (Pipeline context)
 const formSchema = z.object({
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
   description: z.string().optional(),
+  owner_id: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -27,6 +30,8 @@ interface OpportunityFormProps {
 export function OpportunityForm({ opportunity, onSuccess }: OpportunityFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { data: salespeople = [] } = useSalespeople();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -34,10 +39,28 @@ export function OpportunityForm({ opportunity, onSuccess }: OpportunityFormProps
       probability: opportunity?.probability?.toString() || "",
       expected_close_date: opportunity?.expected_close_date || "",
       description: opportunity?.description || "",
+      owner_id: opportunity?.owner_id || "",
     },
   });
 
-  // No need to load companies, contacts, or stages for editing
+  // Get user role
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+    enabled: !!user?.id
+  });
+
+  const isAdmin = userRole === 'admin';
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -45,11 +68,16 @@ export function OpportunityForm({ opportunity, onSuccess }: OpportunityFormProps
         throw new Error("OpportunityForm can only be used for editing existing opportunities");
       }
 
-      const updateData = {
+      const updateData: any = {
         probability: data.probability ? parseFloat(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
         description: data.description || null,
       };
+
+      // Only allow admin to change owner
+      if (isAdmin && data.owner_id) {
+        updateData.owner_id = data.owner_id;
+      }
 
       const { error } = await supabase
         .from("opportunities")
@@ -153,6 +181,33 @@ export function OpportunityForm({ opportunity, onSuccess }: OpportunityFormProps
               </FormItem>
             )}
           />
+
+          {isAdmin && (
+            <FormField
+              control={form.control}
+              name="owner_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alterar Vendedor Responsável</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um vendedor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {salespeople.map((salesperson) => (
+                        <SelectItem key={salesperson.id} value={salesperson.id}>
+                          {salesperson.name} ({salesperson.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
             💡 Para alterar dados da empresa, título ou valor da oportunidade, vá para a seção "Empresas"

@@ -28,9 +28,13 @@ interface Opportunity {
   value: number;
   stage_id: number;
   company_id: number;
+  owner_id: string;
   companies: {
     name: string;
   };
+  users: {
+    name: string;
+  } | null;
 }
 
 interface SortableOpportunityCardProps {
@@ -162,11 +166,18 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: Opportunity
           <Building2 className="h-4 w-4" />
           <span className="text-sm truncate">{opportunity.companies?.name}</span>
         </div>
-        <div className="text-lg font-semibold text-green-600">
-          {new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(opportunity.value)}
+        <div className="flex items-center justify-between">
+          <div className="text-lg font-semibold text-green-600">
+            {new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(opportunity.value)}
+          </div>
+          {opportunity.users && (
+            <div className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
+              {opportunity.users.name}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -209,7 +220,8 @@ export default function Pipeline() {
         .from("opportunities")
         .select(`
           *,
-          companies (name)
+          companies (name),
+          users:owner_id (name)
         `)
         .order("created_at", { ascending: false });
       
