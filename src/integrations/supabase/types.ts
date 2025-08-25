@@ -614,6 +614,10 @@ export type Database = {
         Args: { company_id_param: number }
         Returns: boolean
       }
+      delete_opportunity_with_relations: {
+        Args: { opportunity_id_param: number }
+        Returns: boolean
+      }
       get_conversion_goal_progress: {
         Args: Record<PropertyKey, never>
         Returns: Json

@@ -272,10 +272,9 @@ export default function Pipeline() {
 
   const deleteOpportunityMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await supabase
-        .from("opportunities")
-        .delete()
-        .eq("id", id);
+      const { data, error } = await supabase.rpc('delete_opportunity_with_relations', {
+        opportunity_id_param: id
+      });
       
       if (error) throw error;
     },
