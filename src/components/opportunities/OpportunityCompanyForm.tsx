@@ -288,6 +288,14 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
       // Determine opportunity owner (admin can assign, vendedor uses own id)
       const opportunityOwnerId = isAdmin && data.owner_id ? data.owner_id : user.id;
 
+      console.log('DEBUG: OpportunityCompanyForm creating company with data:', {
+        isAdmin,
+        currentUserId: user.id,
+        formOwnerId: data.owner_id,
+        finalOwnerId: opportunityOwnerId,
+        authSession: await supabase.auth.getSession()
+      });
+
       // Start transaction - create company first
       const companyData = {
         name: data.name,

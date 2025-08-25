@@ -299,6 +299,14 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
 
       // Determine company owner (admin can assign, vendedor = current user)
       const companyOwnerId = isAdmin && data.owner_id && data.owner_id.trim() !== "" ? data.owner_id : currentUser.id;
+      
+      console.log('DEBUG: Creating company with data:', {
+        isAdmin,
+        currentUserId: currentUser.id,
+        formOwnerId: data.owner_id,
+        finalOwnerId: companyOwnerId,
+        authSession: await supabase.auth.getSession()
+      });
 
       const submitData = {
         name: data.name,
