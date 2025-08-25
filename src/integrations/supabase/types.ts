@@ -606,6 +606,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      debug_auth_context: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       delete_company_with_relations: {
         Args: { company_id_param: number }
         Returns: boolean
