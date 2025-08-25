@@ -42,9 +42,10 @@ interface SortableOpportunityCardProps {
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
   isAdmin: boolean;
+  currentUserId?: string;
 }
 
-function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: SortableOpportunityCardProps) {
+function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId }: SortableOpportunityCardProps) {
   const {
     attributes,
     listeners,
@@ -62,7 +63,7 @@ function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: Sor
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <OpportunityCard opportunity={opportunity} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} />
+      <OpportunityCard opportunity={opportunity} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} currentUserId={currentUserId} />
     </div>
   );
 }
@@ -73,9 +74,10 @@ interface DroppableStageProps {
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
   isAdmin: boolean;
+  currentUserId?: string;
 }
 
-function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin }: DroppableStageProps) {
+function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, currentUserId }: DroppableStageProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage-${stage.id}`,
   });
@@ -116,6 +118,7 @@ function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin }: Dro
               onEdit={onEdit}
               onDelete={onDelete}
               isAdmin={isAdmin}
+              currentUserId={currentUserId}
             />
           ))}
         </SortableContext>
@@ -129,9 +132,11 @@ interface OpportunityCardProps {
   onEdit: (opportunity: Opportunity) => void;
   onDelete: (id: number) => void;
   isAdmin: boolean;
+  currentUserId?: string;
 }
 
-function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: OpportunityCardProps) {
+function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId }: OpportunityCardProps) {
+  const canDelete = isAdmin || opportunity.owner_id === currentUserId;
   return (
     <Card className="rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border">
       <CardHeader className="pb-3">
@@ -149,7 +154,7 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin }: Opportunity
               <DropdownMenuItem onClick={() => onEdit(opportunity)}>
                 Editar
               </DropdownMenuItem>
-              {isAdmin && (
+              {canDelete && (
                 <DropdownMenuItem 
                   onClick={() => onDelete(opportunity.id)}
                   className="text-destructive"
@@ -326,10 +331,13 @@ export default function Pipeline() {
   };
 
   const handleDelete = (id: number) => {
-    if (!isAdmin) {
+    const opportunity = opportunities.find(opp => opp.id === id);
+    const canDelete = isAdmin || (opportunity && opportunity.owner_id === user?.id);
+    
+    if (!canDelete) {
       toast({
         title: "Acesso negado",
-        description: "Apenas administradores podem excluir oportunidades.",
+        description: "Você só pode excluir suas próprias oportunidades.",
         variant: "destructive",
       });
       return;
@@ -407,6 +415,7 @@ export default function Pipeline() {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   isAdmin={isAdmin}
+                  currentUserId={user?.id}
                 />
               );
             })}
