@@ -154,7 +154,7 @@ const opportunityCompanySchema = z.object({
   size: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  annual_revenue: z.string().min(1, "Receita anual é obrigatória"),
+  annual_revenue: z.string().optional(),
   
   // Contacts (3 contacts, first mandatory)
   contacts: z.array(z.object({
