@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, Upload, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { isValidCNPJ } from './CompanyForm';
+import { isValidCNPJ } from '@/lib/cnpj-validator';
 
 interface ImportRecord {
   row: number;
