@@ -164,49 +164,172 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   };
 
   const processFile = useCallback((file: File) => {
+    console.log('Iniciando processamento do arquivo:', file.name, 'Tamanho:', file.size, 'bytes');
+    
+    // Validações básicas do arquivo
+    if (file.size === 0) {
+      toast.error('O arquivo está vazio. Selecione um arquivo válido.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('O arquivo é muito grande. O tamanho máximo permitido é 10MB.');
+      return;
+    }
+
     const reader = new FileReader();
+    
+    reader.onerror = () => {
+      console.error('Erro ao ler o arquivo');
+      toast.error('Erro ao ler o arquivo. Tente novamente.');
+    };
     
     reader.onload = (e) => {
       try {
+        console.log('Arquivo lido com sucesso, iniciando processamento...');
         let data: any[] = [];
         
         if (file.name.endsWith('.csv')) {
           const text = e.target?.result as string;
-          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+          console.log('Processando arquivo CSV...');
+          
+          if (!text || text.trim().length === 0) {
+            toast.error('O arquivo CSV está vazio ou não possui conteúdo válido.');
+            return;
+          }
+          
+          const parsed = Papa.parse(text, { 
+            header: true, 
+            skipEmptyLines: true,
+            transformHeader: (header) => header.trim()
+          });
+          
+          if (parsed.errors && parsed.errors.length > 0) {
+            console.error('Erros ao processar CSV:', parsed.errors);
+            toast.error(`Erro no CSV: ${parsed.errors[0].message}`);
+            return;
+          }
+          
           data = parsed.data;
+          console.log('CSV processado com sucesso:', data.length, 'registros encontrados');
+          
         } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          console.log('Processando arquivo Excel...');
           const binaryData = e.target?.result as ArrayBuffer;
-          const workbook = XLSX.read(binaryData, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          data = XLSX.utils.sheet_to_json(worksheet);
+          
+          if (!binaryData || binaryData.byteLength === 0) {
+            toast.error('O arquivo Excel está vazio ou corrompido.');
+            return;
+          }
+          
+          try {
+            const workbook = XLSX.read(binaryData, { type: 'array' });
+            console.log('Planilhas encontradas:', workbook.SheetNames);
+            
+            if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+              toast.error('O arquivo Excel não contém planilhas válidas.');
+              return;
+            }
+            
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            if (!worksheet) {
+              toast.error(`A planilha "${sheetName}" não pôde ser lida.`);
+              return;
+            }
+            
+            data = XLSX.utils.sheet_to_json(worksheet, { 
+              header: 1,
+              defval: '',
+              raw: false
+            });
+            
+            // Converter primeira linha em cabeçalhos
+            if (data.length === 0) {
+              toast.error('A planilha está vazia. Adicione dados e tente novamente.');
+              return;
+            }
+            
+            const headers = data[0] as string[];
+            const rows = data.slice(1);
+            
+            if (headers.length === 0 || rows.length === 0) {
+              toast.error('A planilha não possui dados válidos. Verifique se há cabeçalhos e dados.');
+              return;
+            }
+            
+            // Converter para formato de objetos
+            data = rows.map(row => {
+              const obj: any = {};
+              headers.forEach((header, index) => {
+                if (header && header.trim()) {
+                  obj[header.trim()] = row[index] || '';
+                }
+              });
+              return obj;
+            }).filter(row => Object.values(row).some(value => value && value.toString().trim()));
+            
+            console.log('Excel processado com sucesso:', data.length, 'registros encontrados');
+            
+          } catch (xlsxError) {
+            console.error('Erro específico do XLSX:', xlsxError);
+            toast.error('Erro ao processar arquivo Excel. Verifique se o arquivo não está corrompido.');
+            return;
+          }
+        } else {
+          toast.error('Formato de arquivo não suportado. Use apenas arquivos .csv, .xlsx ou .xls');
+          return;
         }
+
+        if (!data || data.length === 0) {
+          toast.error('Nenhum dado encontrado no arquivo. Verifique se o arquivo contém dados válidos.');
+          return;
+        }
+
+        console.log('Dados extraídos:', data.length, 'registros');
+        console.log('Primeira linha de exemplo:', data[0]);
 
         // Normalizar nomes das colunas
         const normalizedData = data.map(row => {
           const normalized: any = {};
           Object.keys(row).forEach(key => {
             const normalizedKey = normalizeColumnName(key);
-            normalized[normalizedKey] = row[key];
+            if (normalizedKey && row[key] !== undefined && row[key] !== null) {
+              normalized[normalizedKey] = row[key];
+            }
           });
           return normalized;
-        });
+        }).filter(row => Object.keys(row).length > 0);
+
+        if (normalizedData.length === 0) {
+          toast.error('Nenhum dado válido encontrado após normalização. Verifique os cabeçalhos das colunas.');
+          return;
+        }
+
+        console.log('Dados normalizados:', normalizedData.length, 'registros');
 
         // Validar registros
         const validatedRecords = normalizedData.map((row, index) => 
           validateRecord(row, index + 1)
         );
 
+        console.log('Validação concluída:', validatedRecords.length, 'registros processados');
+
         setRecords(validatedRecords);
         setStep('preview');
+        
+        toast.success(`Arquivo processado com sucesso! ${validatedRecords.length} registros encontrados.`);
+        
       } catch (error) {
-        console.error('Erro ao processar arquivo:', error);
-        toast.error('Erro ao processar arquivo. Verifique o formato.');
+        console.error('Erro geral ao processar arquivo:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        toast.error(`Erro ao processar arquivo: ${errorMessage}. Verifique se o arquivo está no formato correto.`);
       }
     };
 
     if (file.name.endsWith('.csv')) {
-      reader.readAsText(file);
+      reader.readAsText(file, 'UTF-8');
     } else {
       reader.readAsArrayBuffer(file);
     }
