@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus, Building2 } from "lucide-react";
+import { MoreHorizontal, Plus, Building2, AlertTriangle } from "lucide-react";
+import { ProjectSelector } from "@/components/opportunities/ProjectSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
 import { OpportunityCompanyForm } from "@/components/opportunities/OpportunityCompanyForm";
@@ -29,6 +30,7 @@ interface Opportunity {
   stage_id: number;
   company_id: number;
   owner_id: string;
+  project_id?: number | null;
   companies: {
     name: string;
   };
@@ -43,9 +45,10 @@ interface SortableOpportunityCardProps {
   onDelete: (id: number) => void;
   isAdmin: boolean;
   currentUserId?: string;
+  aceitosStageId: number;
 }
 
-function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId }: SortableOpportunityCardProps) {
+function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId, aceitosStageId }: SortableOpportunityCardProps) {
   const {
     attributes,
     listeners,
@@ -63,7 +66,14 @@ function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin, curre
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <OpportunityCard opportunity={opportunity} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} currentUserId={currentUserId} />
+      <OpportunityCard 
+        opportunity={opportunity} 
+        onEdit={onEdit} 
+        onDelete={onDelete} 
+        isAdmin={isAdmin} 
+        currentUserId={currentUserId}
+        aceitosStageId={aceitosStageId}
+      />
     </div>
   );
 }
@@ -75,9 +85,10 @@ interface DroppableStageProps {
   onDelete: (id: number) => void;
   isAdmin: boolean;
   currentUserId?: string;
+  aceitosStageId: number;
 }
 
-function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, currentUserId }: DroppableStageProps) {
+function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, currentUserId, aceitosStageId }: DroppableStageProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage-${stage.id}`,
   });
@@ -119,6 +130,7 @@ function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, curre
               onDelete={onDelete}
               isAdmin={isAdmin}
               currentUserId={currentUserId}
+              aceitosStageId={aceitosStageId}
             />
           ))}
         </SortableContext>
@@ -133,37 +145,50 @@ interface OpportunityCardProps {
   onDelete: (id: number) => void;
   isAdmin: boolean;
   currentUserId?: string;
+  aceitosStageId: number;
 }
 
-function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId }: OpportunityCardProps) {
+function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId, aceitosStageId }: OpportunityCardProps) {
   const canDelete = isAdmin || opportunity.owner_id === currentUserId;
+  const isInAceitos = opportunity.stage_id === aceitosStageId;
+  const needsProject = isInAceitos && !opportunity.project_id;
+  
   return (
-    <Card className="rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border">
+    <Card className={`rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border ${
+      needsProject ? 'border-orange-400 border-2' : ''
+    }`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <h4 className="font-bold text-sm leading-tight line-clamp-2 flex-1 mr-2">
             {opportunity.title}
           </h4>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-70 hover:opacity-100">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-50">
-              <DropdownMenuItem onClick={() => onEdit(opportunity)}>
-                Editar
-              </DropdownMenuItem>
-              {canDelete && (
-                <DropdownMenuItem 
-                  onClick={() => onDelete(opportunity.id)}
-                  className="text-destructive"
-                >
-                  Excluir
+          <div className="flex items-center gap-2">
+            {needsProject && (
+              <div title="Projeto obrigatório">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </div>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-70 hover:opacity-100">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50">
+                <DropdownMenuItem onClick={() => onEdit(opportunity)}>
+                  Editar
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {canDelete && (
+                  <DropdownMenuItem 
+                    onClick={() => onDelete(opportunity.id)}
+                    className="text-destructive"
+                  >
+                    Excluir
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
@@ -171,6 +196,33 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
           <Building2 className="h-4 w-4" />
           <span className="text-sm truncate">{opportunity.companies?.name}</span>
         </div>
+        
+        {/* Project section for "Aceitos" stage */}
+        {isInAceitos && (
+          <div className="space-y-2">
+            {needsProject && (
+              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+                ⚠️ Projeto obrigatório para esta etapa
+              </div>
+            )}
+            <ProjectSelector
+              opportunityId={opportunity.id}
+              companyId={opportunity.company_id}
+              currentProjectId={opportunity.project_id}
+              trigger={
+                <Button 
+                  variant={needsProject ? "default" : "outline"} 
+                  size="sm" 
+                  className="w-full gap-2 pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {opportunity.project_id ? "Alterar Projeto" : "Selecionar Projeto"}
+                </Button>
+              }
+            />
+          </div>
+        )}
+        
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold text-green-600">
             {new Intl.NumberFormat('pt-BR', {
@@ -196,6 +248,9 @@ export default function Pipeline() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Get "Aceitos" stage ID
+  const aceitosStageId = 26; // Based on the query result we got earlier
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -226,7 +281,8 @@ export default function Pipeline() {
         .select(`
           *,
           companies (name),
-          users:owner_id (name)
+          users:owner_id (name),
+          projects:project_id (title)
         `)
         .order("created_at", { ascending: false });
       
@@ -426,6 +482,7 @@ export default function Pipeline() {
                   onDelete={handleDelete}
                   isAdmin={isAdmin}
                   currentUserId={user?.id}
+                  aceitosStageId={aceitosStageId}
                 />
               );
             })}
@@ -438,6 +495,8 @@ export default function Pipeline() {
                 onEdit={() => {}}
                 onDelete={() => {}}
                 isAdmin={isAdmin}
+                currentUserId={user?.id}
+                aceitosStageId={aceitosStageId}
               />
             ) : null}
           </DragOverlay>

@@ -243,6 +243,7 @@ export type Database = {
           id: number
           owner_id: string
           probability: number | null
+          project_id: number | null
           stage_id: number
           title: string
           value: number
@@ -256,6 +257,7 @@ export type Database = {
           id?: never
           owner_id: string
           probability?: number | null
+          project_id?: number | null
           stage_id: number
           title: string
           value: number
@@ -269,6 +271,7 @@ export type Database = {
           id?: never
           owner_id?: string
           probability?: number | null
+          project_id?: number | null
           stage_id?: number
           title?: string
           value?: number
@@ -293,6 +296,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
