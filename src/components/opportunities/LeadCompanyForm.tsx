@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { usePipelineStages } from "@/hooks/usePipelineStages";
 
 // Utility functions
 const isValidCNPJ = (cnpj: string): boolean => {
@@ -87,7 +88,7 @@ const brazilianStates = [
   { value: "TO", label: "TO - Tocantins" }
 ];
 
-// Lead form schema (only company and contact data)
+// Lead form schema (company, contact data and pipeline stage)
 const leadFormSchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
   cnpj: z.string().min(1, "CNPJ é obrigatório").refine((val) => {
@@ -106,6 +107,7 @@ const leadFormSchema = z.object({
   contact_phone: z.string().min(1, "Telefone do contato é obrigatório"),
   contact_role: z.string().min(1, "Cargo do contato é obrigatório"),
   contact_email: z.string().email("Email inválido").optional().or(z.literal("")),
+  stage_id: z.string().min(1, "Estágio inicial é obrigatório"),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
@@ -117,6 +119,7 @@ interface LeadCompanyFormProps {
 export function LeadCompanyForm({ onSuccess }: LeadCompanyFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: pipelineStages, isLoading: isLoadingStages } = usePipelineStages();
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadFormSchema),
@@ -134,6 +137,7 @@ export function LeadCompanyForm({ onSuccess }: LeadCompanyFormProps) {
       contact_phone: "",
       contact_role: "",
       contact_email: "",
+      stage_id: "",
     },
   });
 
@@ -179,14 +183,32 @@ export function LeadCompanyForm({ onSuccess }: LeadCompanyFormProps) {
 
       if (contactError) throw contactError;
 
-      return { company, contact };
+      // Create minimal opportunity in the selected stage
+      const { data: opportunity, error: opportunityError } = await supabase
+        .from("opportunities")
+        .insert({
+          title: `Oportunidade - ${data.name}`,
+          value: 0,
+          company_id: company.id,
+          contact_id: contact.id,
+          stage_id: parseInt(data.stage_id),
+          owner_id: user.id,
+          description: "Oportunidade criada automaticamente através do cadastro de lead",
+        })
+        .select()
+        .single();
+
+      if (opportunityError) throw opportunityError;
+
+      return { company, contact, opportunity };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       toast({
         title: "Lead criado com sucesso",
-        description: "O lead foi cadastrado no sistema.",
+        description: "O lead foi cadastrado no sistema e aparecerá no pipeline.",
       });
       form.reset();
       onSuccess?.();
@@ -440,6 +462,39 @@ export function LeadCompanyForm({ onSuccess }: LeadCompanyFormProps) {
                   <FormControl>
                     <Input placeholder="Ex: Gerente" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Estágio Inicial */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Estágio Inicial</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="stage_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estágio no Pipeline *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingStages}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o estágio inicial" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {pipelineStages?.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id.toString()}>
+                          {stage.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
