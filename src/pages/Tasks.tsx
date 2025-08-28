@@ -4,15 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle, Trash2 } from "lucide-react";
+import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle, Trash2, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TaskForm } from "@/components/tasks/TaskForm";
+import { useQuery } from "@tanstack/react-query";
 
 interface Task {
   id: number;
@@ -23,6 +25,13 @@ interface Task {
   description: string | null;
   created_at: string;
   responsible_id: string | null;
+  company_name?: string;
+}
+
+interface Company {
+  id: number;
+  name: string;
+  type: string;
 }
 
 const Tasks = () => {
@@ -34,6 +43,7 @@ const Tasks = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -41,19 +51,49 @@ const Tasks = () => {
     }
   }, [user, loading, navigate]);
 
+  // Fetch companies for filter
+  const { data: companies = [] } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name, type")
+        .order("name");
+      
+      if (error) throw error;
+      return data as Company[];
+    },
+    enabled: !!user
+  });
+
   useEffect(() => {
     if (user) {
       fetchTasks();
     }
-  }, [user]);
+  }, [user, selectedCompanyId]);
 
   const fetchTasks = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("tasks")
-        .select("*")
+        .select(`
+          *,
+          companies!tasks_company_id_fkey(name),
+          contacts!tasks_contact_id_fkey(company_id, companies!contacts_company_id_fkey(name)),
+          projects!tasks_project_id_fkey(company_id, companies!projects_company_id_fkey(name)),
+          opportunities!tasks_opportunity_id_fkey(company_id, companies!opportunities_company_id_fkey(name))
+        `)
         .order("created_at", { ascending: false });
+
+      // Apply company filter if selected
+      if (selectedCompanyId !== "all") {
+        const companyId = parseInt(selectedCompanyId);
+        query = query.or(`company_id.eq.${companyId},contacts.company_id.eq.${companyId},projects.company_id.eq.${companyId},opportunities.company_id.eq.${companyId}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         toast({
@@ -62,7 +102,34 @@ const Tasks = () => {
           variant: "destructive",
         });
       } else {
-        setTasks(data || []);
+        // Transform data to include company name
+        const transformedTasks = (data || []).map(task => {
+          let companyName = "";
+          
+          // Direct company association
+          if (task.companies?.name) {
+            companyName = task.companies.name;
+          }
+          // Through contact
+          else if (task.contacts?.companies?.name) {
+            companyName = task.contacts.companies.name;
+          }
+          // Through project
+          else if (task.projects?.companies?.name) {
+            companyName = task.projects.companies.name;
+          }
+          // Through opportunity
+          else if (task.opportunities?.companies?.name) {
+            companyName = task.opportunities.companies.name;
+          }
+
+          return {
+            ...task,
+            company_name: companyName
+          };
+        });
+
+        setTasks(transformedTasks);
       }
     } catch (error) {
       toast({
@@ -237,13 +304,31 @@ const Tasks = () => {
           <CardTitle className="text-xl font-semibold text-foreground">
             Tarefas
           </CardTitle>
-          <Button
-            onClick={handleNewTask}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Nova Tarefa
-          </Button>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar por cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as empresas</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id.toString()}>
+                      {company.name} ({company.type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleNewTask}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Nova Tarefa
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -267,6 +352,9 @@ const Tasks = () => {
                   <TableRow className="bg-muted hover:bg-muted">
                     <TableHead className="font-semibold">
                       Nome
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Cliente
                     </TableHead>
                     <TableHead className="font-semibold">
                       Data de Vencimento
@@ -297,6 +385,9 @@ const Tasks = () => {
                             </p>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {task.company_name || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDueDate(task.due_date)}
