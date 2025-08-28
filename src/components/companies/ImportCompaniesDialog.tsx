@@ -8,10 +8,14 @@ import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Download, Upload, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isValidCNPJ } from '@/lib/cnpj-validator';
+import { useSalespeople } from '@/hooks/useSalespeople';
+import { useQuery } from '@tanstack/react-query';
 
 interface ImportRecord {
   row: number;
@@ -86,6 +90,28 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const [records, setRecords] = useState<ImportRecord[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [selectedResponsible, setSelectedResponsible] = useState<string>('');
+  
+  const { data: salespeople } = useSalespeople();
+  
+  // Get current user role
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role, name')
+        .eq('id', user.id)
+        .single();
+        
+      return { ...user, ...userData };
+    }
+  });
+  
+  const isAdmin = currentUser?.role === 'admin';
 
   const downloadTemplate = () => {
     const template = [
@@ -363,7 +389,8 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     try {
       const { data, error } = await supabase.functions.invoke('import-companies', {
         body: { 
-          companies: validRecords.map(r => r.data)
+          companies: validRecords.map(r => r.data),
+          owner_id: selectedResponsible || undefined
         }
       });
 
@@ -454,23 +481,52 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
 
           {step === 'preview' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-4">
-                  <Badge variant="outline" className="text-green-600">
-                    Válidos: {validCount}
-                  </Badge>
-                  <Badge variant="outline" className="text-red-600">
-                    Erros: {errorCount}
-                  </Badge>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <Badge variant="outline" className="text-green-600">
+                      Válidos: {validCount}
+                    </Badge>
+                    <Badge variant="outline" className="text-red-600">
+                      Erros: {errorCount}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setStep('upload')}>
+                      Voltar
+                    </Button>
+                    <Button onClick={handleImport} disabled={validCount === 0}>
+                      Importar {validCount} Registros
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep('upload')}>
-                    Voltar
-                  </Button>
-                  <Button onClick={handleImport} disabled={validCount === 0}>
-                    Importar {validCount} Registros
-                  </Button>
-                </div>
+
+                {isAdmin && salespeople && (
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="responsible-select">Responsável pelos Leads</Label>
+                      <Select value={selectedResponsible} onValueChange={setSelectedResponsible}>
+                        <SelectTrigger id="responsible-select">
+                          <SelectValue placeholder="Selecione o responsável (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Eu mesmo ({currentUser?.name})</SelectItem>
+                          {salespeople
+                            .filter(person => person.id !== currentUser?.id)
+                            .map(person => (
+                              <SelectItem key={person.id} value={person.id}>
+                                {person.name} ({person.role})
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Se não selecionar ninguém, você será o responsável pelos leads importados.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="border rounded-lg overflow-hidden">

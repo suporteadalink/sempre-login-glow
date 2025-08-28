@@ -20,6 +20,11 @@ interface CompanyData {
   tipo: 'Lead' | 'Cliente';
 }
 
+interface ImportRequest {
+  companies: CompanyData[];
+  owner_id?: string;
+}
+
 interface ImportResult {
   total: number;
   success: number;
@@ -70,13 +75,42 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { companies }: { companies: CompanyData[] } = await req.json()
+    const { companies, owner_id }: ImportRequest = await req.json()
 
     if (!companies || !Array.isArray(companies)) {
       return new Response(
         JSON.stringify({ error: 'Invalid companies data' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Determine the actual owner for the companies
+    let actualOwnerId = user.id;
+    if (owner_id) {
+      // Only admins can assign companies to other users
+      if (userData.role !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Only admins can assign companies to other users' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      // Validate that the target user exists and is active
+      const { data: targetUser, error: userError } = await supabaseClient
+        .from('users')
+        .select('id, name, role, status')
+        .eq('id', owner_id)
+        .eq('status', 'Ativo')
+        .single()
+      
+      if (userError || !targetUser) {
+        return new Response(
+          JSON.stringify({ error: 'Target user not found or inactive' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      actualOwnerId = owner_id;
     }
 
     const result: ImportResult = {
@@ -130,7 +164,7 @@ Deno.serve(async (req) => {
             email: company.email || null,
             website: company.website || null,
             type: company.tipo,
-            owner_id: user.id
+            owner_id: actualOwnerId
           }
 
           // Insert company
@@ -167,7 +201,7 @@ Deno.serve(async (req) => {
                 value: company.receita_anual || 0,
                 company_id: insertedCompany.id,
                 stage_id: pipelineStages[0].id,
-                owner_id: user.id,
+                owner_id: actualOwnerId,
                 probability: 10
               }
 
