@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,9 +32,13 @@ interface Company {
 
 export default function Companies() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [dependenciesDialogOpen, setDependenciesDialogOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [dependencies, setDependencies] = useState<{opportunities: any[], projects: any[]}>({opportunities: [], projects: []});
   const { toast } = useToast();
 
   // Get user role
@@ -68,7 +74,7 @@ export default function Companies() {
 
   const isAdmin = userRole === 'admin';
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (company: Company) => {
     if (!isAdmin) {
       toast({
         title: "Acesso negado",
@@ -78,14 +84,46 @@ export default function Companies() {
       return;
     }
 
-    if (!confirm("Tem certeza que deseja excluir esta empresa? Todos os dados relacionados (contatos, projetos, oportunidades, propostas, etc.) também serão excluídos.")) {
-      return;
-    }
-
+    // Check for dependencies first
     try {
+      const [opportunitiesResult, projectsResult] = await Promise.all([
+        supabase
+          .from("opportunities")
+          .select("id, title, value")
+          .eq("company_id", company.id),
+        supabase
+          .from("projects")
+          .select("id, title, status")
+          .eq("company_id", company.id)
+      ]);
+
+      if (opportunitiesResult.error || projectsResult.error) {
+        toast({
+          title: "Erro ao verificar dependências",
+          description: opportunitiesResult.error?.message || projectsResult.error?.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const opportunities = opportunitiesResult.data || [];
+      const projects = projectsResult.data || [];
+
+      if (opportunities.length > 0 || projects.length > 0) {
+        setDependencies({ opportunities, projects });
+        setCompanyToDelete(company);
+        setDependenciesDialogOpen(true);
+        return;
+      }
+
+      // No dependencies, proceed with normal deletion
+      if (!confirm("Tem certeza que deseja excluir esta empresa? Todos os dados relacionados (contatos, propostas, etc.) também serão excluídos.")) {
+        return;
+      }
+
       // Use the database function to safely delete the company and all related records
       const { data, error } = await supabase.rpc('delete_company_with_relations', {
-        company_id_param: id
+        company_id_param: company.id
       });
 
       if (error) throw error;
@@ -204,7 +242,7 @@ export default function Companies() {
                         </DropdownMenuItem>
                         {isAdmin && (
                           <DropdownMenuItem 
-                            onClick={() => handleDelete(company.id)}
+                            onClick={() => handleDelete(company)}
                             className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -228,6 +266,64 @@ export default function Companies() {
           onCancel={handleFormClose}
         />
       </Dialog>
+
+      {/* Dependencies Dialog */}
+      <AlertDialog open={dependenciesDialogOpen} onOpenChange={setDependenciesDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Não é possível excluir a empresa</AlertDialogTitle>
+            <AlertDialogDescription>
+              A empresa "{companyToDelete?.name}" não pode ser excluída porque possui dependências:
+              <br /><br />
+              {dependencies.opportunities.length > 0 && (
+                <>
+                  <strong>Oportunidades ativas ({dependencies.opportunities.length}):</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    {dependencies.opportunities.map((opp) => (
+                      <li key={opp.id} className="text-sm">
+                        {opp.title} - {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(opp.value || 0)}
+                      </li>
+                    ))}
+                  </ul>
+                  <br />
+                </>
+              )}
+              {dependencies.projects.length > 0 && (
+                <>
+                  <strong>Projetos ativos ({dependencies.projects.length}):</strong>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    {dependencies.projects.map((proj) => (
+                      <li key={proj.id} className="text-sm">
+                        {proj.title} - Status: {proj.status}
+                      </li>
+                    ))}
+                  </ul>
+                  <br />
+                </>
+              )}
+              Para excluir esta empresa, primeiro gerencie as dependências nas páginas correspondentes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Fechar
+            </AlertDialogCancel>
+            {dependencies.opportunities.length > 0 && (
+              <AlertDialogAction onClick={() => navigate('/pipeline')}>
+                Ir para Pipeline
+              </AlertDialogAction>
+            )}
+            {dependencies.projects.length > 0 && (
+              <AlertDialogAction onClick={() => navigate('/projects')}>
+                Ir para Projetos
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

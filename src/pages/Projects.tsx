@@ -40,6 +40,8 @@ const Projects = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dependenciesDialogOpen, setDependenciesDialogOpen] = useState(false);
+  const [dependencies, setDependencies] = useState<{opportunities: any[]}>({opportunities: []});
 
   useEffect(() => {
     if (!loading && !user) {
@@ -134,8 +136,39 @@ const Projects = () => {
   };
 
   const handleDelete = async (project: Project) => {
-    setProjectToDelete(project);
-    setIsDeleteDialogOpen(true);
+    // Check for dependencies first
+    try {
+      const { data: opportunities, error } = await supabase
+        .from("opportunities")
+        .select("id, title, value")
+        .eq("project_id", project.id);
+
+      if (error) {
+        toast({
+          title: "Erro ao verificar dependências",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (opportunities && opportunities.length > 0) {
+        setDependencies({ opportunities });
+        setProjectToDelete(project);
+        setDependenciesDialogOpen(true);
+        return;
+      }
+
+      // No dependencies, proceed with normal deletion
+      setProjectToDelete(project);
+      setIsDeleteDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao verificar as dependências do projeto.",
+        variant: "destructive",
+      });
+    }
   };
 
   const confirmDelete = async () => {
@@ -411,6 +444,40 @@ const Projects = () => {
               ) : (
                 "Excluir"
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dependencies Dialog */}
+      <AlertDialog open={dependenciesDialogOpen} onOpenChange={setDependenciesDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Não é possível excluir o projeto</AlertDialogTitle>
+            <AlertDialogDescription>
+              O projeto "{projectToDelete?.title}" não pode ser excluído porque possui dependências:
+              <br /><br />
+              <strong>Oportunidades vinculadas ({dependencies.opportunities.length}):</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                {dependencies.opportunities.map((opp) => (
+                  <li key={opp.id} className="text-sm">
+                    {opp.title} - {new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }).format(opp.value || 0)}
+                  </li>
+                ))}
+              </ul>
+              <br />
+              Para excluir este projeto, primeiro desvincule ou exclua as oportunidades relacionadas na página Pipeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              Fechar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate('/pipeline')}>
+              Ir para Pipeline
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
