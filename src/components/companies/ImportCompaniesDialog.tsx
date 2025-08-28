@@ -390,7 +390,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
       const { data, error } = await supabase.functions.invoke('import-companies', {
         body: { 
           companies: validRecords.map(r => r.data),
-          owner_id: selectedResponsible || undefined
+          owner_id: selectedResponsible === 'self' ? undefined : selectedResponsible
         }
       });
 
@@ -510,7 +510,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                           <SelectValue placeholder="Selecione o responsável (opcional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Eu mesmo ({currentUser?.name})</SelectItem>
+                          <SelectItem value="self">Eu mesmo ({currentUser?.name})</SelectItem>
                           {salespeople
                             .filter(person => person.id !== currentUser?.id)
                             .map(person => (
