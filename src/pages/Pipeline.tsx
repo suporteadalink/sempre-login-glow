@@ -12,7 +12,7 @@ import { MoreHorizontal, Plus, Building2, AlertTriangle } from "lucide-react";
 import { ProjectSelector } from "@/components/opportunities/ProjectSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
-import { OpportunityCompanyForm } from "@/components/opportunities/OpportunityCompanyForm";
+import { LeadCompanyForm } from "@/components/opportunities/LeadCompanyForm";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -453,7 +453,7 @@ export default function Pipeline() {
                 onSuccess={handleDialogClose}
               />
             ) : (
-              <OpportunityCompanyForm
+              <LeadCompanyForm
                 onSuccess={handleDialogClose}
               />
             )}
