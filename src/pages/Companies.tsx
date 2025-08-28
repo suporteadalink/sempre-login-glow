@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Plus, Upload, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CompanyForm } from "@/components/companies/CompanyForm";
+import ImportCompaniesDialog from "@/components/companies/ImportCompaniesDialog";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -35,6 +36,7 @@ export default function Companies() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [dependenciesDialogOpen, setDependenciesDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
@@ -195,10 +197,16 @@ export default function Companies() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-foreground">Empresas</h1>
-        <Button onClick={() => setIsFormOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Adicionar Nova Empresa
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar Empresas
+          </Button>
+          <Button onClick={() => setIsFormOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Adicionar Nova Empresa
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -266,6 +274,16 @@ export default function Companies() {
           onCancel={handleFormClose}
         />
       </Dialog>
+
+      <ImportCompaniesDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => {
+          setIsImportOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["companies"] });
+          queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+        }}
+      />
 
       {/* Dependencies Dialog */}
       <AlertDialog open={dependenciesDialogOpen} onOpenChange={setDependenciesDialogOpen}>

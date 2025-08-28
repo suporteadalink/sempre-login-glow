@@ -47,7 +47,7 @@ const BRAZILIAN_STATES = [
 ];
 
 // Função para validar CNPJ usando o algoritmo oficial brasileiro
-const isValidCNPJ = (cnpj: string): boolean => {
+export const isValidCNPJ = (cnpj: string): boolean => {
   // Remove caracteres não numéricos
   const cleanCNPJ = cnpj.replace(/[^\d]/g, '');
   
