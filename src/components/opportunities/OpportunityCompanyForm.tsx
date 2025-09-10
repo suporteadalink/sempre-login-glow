@@ -142,7 +142,8 @@ const optionalContactSchema = z.object({
 const opportunityCompanySchema = z.object({
   // Company data
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().min(1, "CNPJ é obrigatório").refine((val) => {
+  cnpj: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
     return isValidCNPJ(val);
   }, {
     message: "CNPJ inválido. Verifique os dígitos digitados."

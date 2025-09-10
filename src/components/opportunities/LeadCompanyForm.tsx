@@ -91,7 +91,8 @@ const brazilianStates = [
 // Lead form schema (company, contact data and pipeline stage)
 const leadFormSchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().min(1, "CNPJ é obrigatório").refine((val) => {
+  cnpj: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
     return isValidCNPJ(val);
   }, {
     message: "CNPJ inválido. Verifique os dígitos digitados."
