@@ -188,12 +188,7 @@ const optionalContactSchema = z.object({
 
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidCNPJ(val);
-  }, {
-    message: "CNPJ inválido. Verifique os dígitos digitados."
-  }),
+  cnpj: z.string().optional(),
   sector: z.string().optional(),
   size: z.string().optional(),
   number_of_employees: z.number().optional(),
@@ -206,12 +201,7 @@ const companySchema = z.object({
   }, {
     message: "Formato: (11) 93385-1277"
   }),
-  email: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidEmail(val);
-  }, {
-    message: "Email inválido"
-  }),
+  email: z.string().optional(),
   website: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
     return isValidURL(val);

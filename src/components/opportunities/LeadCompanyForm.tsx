@@ -91,14 +91,9 @@ const brazilianStates = [
 // Lead form schema (company, contact data and pipeline stage)
 const leadFormSchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidCNPJ(val);
-  }, {
-    message: "CNPJ inválido. Verifique os dígitos digitados."
-  }),
+  cnpj: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  email: z.string().optional(),
   website: z.string().optional(),
   sector: z.string().optional(),
   size: z.string().optional(),
@@ -107,7 +102,7 @@ const leadFormSchema = z.object({
   contact_name: z.string().min(1, "Nome do contato é obrigatório"),
   contact_phone: z.string().min(1, "Telefone do contato é obrigatório"),
   contact_role: z.string().min(1, "Cargo do contato é obrigatório"),
-  contact_email: z.string().email("Email inválido").optional().or(z.literal("")),
+  contact_email: z.string().optional(),
   stage_id: z.string().min(1, "Estágio inicial é obrigatório"),
 });
 
