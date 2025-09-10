@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Download, Upload, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { isValidCNPJ } from '@/lib/cnpj-validator';
+
 import { useSalespeople } from '@/hooks/useSalespeople';
 import { useQuery } from '@tanstack/react-query';
 
@@ -151,20 +151,6 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
       errors.push('Nome é obrigatório');
     }
 
-    // Validar CNPJ se fornecido
-    if (data.cnpj && data.cnpj.trim() !== '') {
-      if (!isValidCNPJ(data.cnpj)) {
-        errors.push('CNPJ inválido');
-      }
-    }
-
-    // Validar email se fornecido
-    if (data.email && data.email.trim() !== '') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        errors.push('Email inválido');
-      }
-    }
 
     // Validar tipo
     if (data.tipo && !['Lead', 'Cliente'].includes(data.tipo)) {
