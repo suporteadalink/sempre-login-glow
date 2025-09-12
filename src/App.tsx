@@ -14,6 +14,7 @@ import Companies from "./pages/Companies";
 import Tasks from "./pages/Tasks";
 import Proposals from "./pages/Proposals";
 import Settings from "./pages/Settings";
+import AIMonitoring from "./pages/AIMonitoring";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
                   <Route path="/tarefas" element={<Tasks />} />
                   <Route path="/propostas" element={<Proposals />} />
                   <Route path="/configuracoes" element={<Settings />} />
+                  <Route path="/ai-monitoring" element={<AIMonitoring />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

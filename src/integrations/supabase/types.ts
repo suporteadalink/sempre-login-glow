@@ -16,32 +16,38 @@ export type Database = {
     Tables: {
       activity_log: {
         Row: {
+          ai_metadata: Json | null
           created_at: string | null
           description: string
           id: number
           related_company_id: number | null
           related_opportunity_id: number | null
           related_project_id: number | null
+          source: string | null
           type: string | null
           user_id: string | null
         }
         Insert: {
+          ai_metadata?: Json | null
           created_at?: string | null
           description: string
           id?: never
           related_company_id?: number | null
           related_opportunity_id?: number | null
           related_project_id?: number | null
+          source?: string | null
           type?: string | null
           user_id?: string | null
         }
         Update: {
+          ai_metadata?: Json | null
           created_at?: string | null
           description?: string
           id?: never
           related_company_id?: number | null
           related_opportunity_id?: number | null
           related_project_id?: number | null
+          source?: string | null
           type?: string | null
           user_id?: string | null
         }
@@ -78,6 +84,8 @@ export type Database = {
       }
       companies: {
         Row: {
+          ai_confidence: number | null
+          ai_metadata: Json | null
           annual_revenue: number | null
           city: string | null
           cnpj: string | null
@@ -90,11 +98,14 @@ export type Database = {
           phone: string | null
           sector: string | null
           size: string | null
+          source: string | null
           state: string | null
           type: string
           website: string | null
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           annual_revenue?: number | null
           city?: string | null
           cnpj?: string | null
@@ -107,11 +118,14 @@ export type Database = {
           phone?: string | null
           sector?: string | null
           size?: string | null
+          source?: string | null
           state?: string | null
           type: string
           website?: string | null
         }
         Update: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           annual_revenue?: number | null
           city?: string | null
           cnpj?: string | null
@@ -124,6 +138,7 @@ export type Database = {
           phone?: string | null
           sector?: string | null
           size?: string | null
+          source?: string | null
           state?: string | null
           type?: string
           website?: string | null
@@ -140,6 +155,8 @@ export type Database = {
       }
       contacts: {
         Row: {
+          ai_confidence: number | null
+          ai_metadata: Json | null
           company_id: number | null
           created_at: string | null
           email: string | null
@@ -150,8 +167,11 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           role: string | null
+          source: string | null
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           company_id?: number | null
           created_at?: string | null
           email?: string | null
@@ -162,8 +182,11 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           role?: string | null
+          source?: string | null
         }
         Update: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           company_id?: number | null
           created_at?: string | null
           email?: string | null
@@ -174,6 +197,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           role?: string | null
+          source?: string | null
         }
         Relationships: [
           {
@@ -235,6 +259,8 @@ export type Database = {
       }
       opportunities: {
         Row: {
+          ai_confidence: number | null
+          ai_metadata: Json | null
           company_id: number
           contact_id: number | null
           created_at: string | null
@@ -244,11 +270,14 @@ export type Database = {
           owner_id: string
           probability: number | null
           project_id: number | null
+          source: string | null
           stage_id: number
           title: string
           value: number
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           company_id: number
           contact_id?: number | null
           created_at?: string | null
@@ -258,11 +287,14 @@ export type Database = {
           owner_id: string
           probability?: number | null
           project_id?: number | null
+          source?: string | null
           stage_id: number
           title: string
           value: number
         }
         Update: {
+          ai_confidence?: number | null
+          ai_metadata?: Json | null
           company_id?: number
           contact_id?: number | null
           created_at?: string | null
@@ -272,6 +304,7 @@ export type Database = {
           owner_id?: string
           probability?: number | null
           project_id?: number | null
+          source?: string | null
           stage_id?: number
           title?: string
           value?: number

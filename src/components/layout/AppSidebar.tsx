@@ -8,7 +8,8 @@ import {
   Users,
   FileText,
   CheckSquare,
-  LogOut
+  LogOut,
+  Bot
 } from "lucide-react";
 
 import {
@@ -36,6 +37,7 @@ const navigationItems = [
   
   { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Propostas", url: "/propostas", icon: FileText },
+  { title: "IA Monitoring", url: "/ai-monitoring", icon: Bot },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
