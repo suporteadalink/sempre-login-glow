@@ -109,11 +109,13 @@ const formatPhone = (value: string): string => {
 };
 
 // Função para formatar valor monetário
-const formatCurrency = (value: string): string => {
-  if (!value) return '';
-  const numbers = value.replace(/\D/g, '');
+const formatCurrency = (value: string | number | null | undefined): string => {
+  if (value == null) return '';               // só null/undefined
+  const str = String(value);                  // garante string
+  if (str.trim() === '') return '';           // string vazia
+  const numbers = str.replace(/\D/g, '');
   if (numbers === '') return '';
-  const amount = parseFloat(numbers) / 100;
+  const amount = Number(numbers) / 100;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -121,12 +123,12 @@ const formatCurrency = (value: string): string => {
   }).format(amount);
 };
 
-// Função para parse de valor monetário
-const parseCurrency = (value: string): number | undefined => {
-  if (!value) return undefined;
-  const numbers = value.replace(/\D/g, '');
+const parseCurrency = (value: string | number | null | undefined): number | undefined => {
+  if (value == null) return undefined;
+  const str = String(value);
+  const numbers = str.replace(/\D/g, '');
   if (numbers === '') return undefined;
-  return parseFloat(numbers) / 100;
+  return Number(numbers) / 100;
 };
 
 // Função para formatar URL de website
