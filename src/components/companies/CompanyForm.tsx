@@ -188,12 +188,7 @@ const optionalContactSchema = z.object({
 
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidCNPJ(val);
-  }, {
-    message: "CNPJ inválido"
-  }),
+  cnpj: z.string().optional(),
   sector: z.string().optional(),
   size: z.string().optional(),
   number_of_employees: z.number().optional(),
@@ -683,7 +678,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                   <FormControl>
                     <Input 
                       placeholder="R$ 0,00" 
-                      value={field.value ? formatCurrency(field.value.toString().replace('.', '')) : ''}
+                      value={field.value !== undefined ? formatCurrency(field.value.toString().replace('.', '')) : ''}
                       onChange={(e) => {
                         const parsedValue = parseCurrency(e.target.value);
                         field.onChange(parsedValue);
