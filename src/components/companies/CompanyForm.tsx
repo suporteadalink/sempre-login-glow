@@ -188,7 +188,12 @@ const optionalContactSchema = z.object({
 
 const companySchema = z.object({
   name: z.string().min(1, "Nome da empresa é obrigatório"),
-  cnpj: z.string().optional(),
+  cnpj: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    return isValidCNPJ(val);
+  }, {
+    message: "CNPJ inválido"
+  }),
   sector: z.string().optional(),
   size: z.string().optional(),
   number_of_employees: z.number().optional(),
@@ -201,14 +206,19 @@ const companySchema = z.object({
   }, {
     message: "Formato: (11) 93385-1277"
   }),
-  email: z.string().optional(),
+  email: z.string().optional().refine((val) => {
+    if (!val || val.trim() === "") return true;
+    return isValidEmail(val);
+  }, {
+    message: "E-mail inválido"
+  }),
   website: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
     return isValidURL(val);
   }, {
     message: "URL inválida"
   }),
-  type: z.string().min(1, "Tipo é obrigatório"),
+  type: z.string().min(1, "Tipo da empresa é obrigatório"),
   // Campos específicos para Lead
   owner_id: z.string().optional(),
   stage_id: z.string().optional(),
@@ -376,6 +386,52 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
 
   const onSubmit = async (data: CompanyFormData) => {
     setLoading(true);
+    
+    // Validar campos obrigatórios manualmente antes de tentar salvar
+    const missingFields = [];
+    
+    if (!data.name?.trim()) {
+      missingFields.push("Nome da empresa");
+    }
+    
+    if (!data.type?.trim()) {
+      missingFields.push("Tipo da empresa");
+    }
+    
+    // Validar primeiro contato (obrigatório)
+    const firstContact = data.contacts[0];
+    if (!firstContact.name?.trim()) {
+      missingFields.push("Nome do primeiro contato");
+    }
+    if (!firstContact.phone?.trim()) {
+      missingFields.push("Telefone do primeiro contato");
+    }
+    if (!firstContact.role?.trim()) {
+      missingFields.push("Cargo do primeiro contato");
+    }
+    
+    // Se tipo é Lead, validar campos específicos
+    if (data.type === "Lead") {
+      if (!data.opportunity_title?.trim()) {
+        missingFields.push("Título da oportunidade");
+      }
+    }
+    
+    // Se há campos obrigatórios faltando, mostrar erro específico
+    if (missingFields.length > 0) {
+      const message = missingFields.length === 1 
+        ? `Campo obrigatório: ${missingFields[0]}`
+        : `Campos obrigatórios: ${missingFields.join(", ")}`;
+      
+      toast({
+        title: "Campos obrigatórios",
+        description: message,
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
@@ -912,7 +968,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || !form.formState.isValid}
+              disabled={loading}
             >
               {loading ? "Salvando..." : "Salvar"}
             </Button>
