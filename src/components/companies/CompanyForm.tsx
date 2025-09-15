@@ -110,9 +110,8 @@ const formatPhone = (value: string): string => {
 
 // Função para formatar valor monetário
 const formatCurrency = (value: string | number | null | undefined): string => {
-  if (value == null) return '';               // só null/undefined
-  const str = String(value);                  // garante string
-  if (str.trim() === '') return '';           // string vazia
+  if (value == null || value === '') return '';
+  const str = String(value);
   const numbers = str.replace(/\D/g, '');
   if (numbers === '') return '';
   const amount = Number(numbers) / 100;
@@ -123,12 +122,12 @@ const formatCurrency = (value: string | number | null | undefined): string => {
   }).format(amount);
 };
 
-const parseCurrency = (value: string | number | null | undefined): number | undefined => {
-  if (value == null) return undefined;
-  const str = String(value);
-  const numbers = str.replace(/\D/g, '');
+const parseCurrency = (value: string): number | undefined => {
+  if (!value || value.trim() === '') return undefined;
+  const numbers = value.replace(/\D/g, '');
   if (numbers === '') return undefined;
-  return Number(numbers) / 100;
+  const parsed = Number(numbers) / 100;
+  return parsed;
 };
 
 // Função para formatar URL de website
@@ -680,7 +679,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                   <FormControl>
                     <Input 
                       placeholder="R$ 0,00" 
-                      value={field.value !== undefined ? formatCurrency(field.value.toString().replace('.', '')) : ''}
+                      value={field.value !== undefined && field.value !== null ? formatCurrency((field.value * 100).toString()) : ''}
                       onChange={(e) => {
                         const parsedValue = parseCurrency(e.target.value);
                         field.onChange(parsedValue);
