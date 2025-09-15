@@ -125,7 +125,7 @@ const formatCurrency = (value: string): string => {
 const parseCurrency = (value: string): number | undefined => {
   if (!value) return undefined;
   const numbers = value.replace(/\D/g, '');
-  if (!numbers) return undefined;
+  if (numbers === '') return undefined;
   return parseFloat(numbers) / 100;
 };
 
