@@ -14,12 +14,12 @@ interface ValidationRequest {
     email?: string;
     phone?: string;
     website?: string;
+    sector?: string;
     city?: string;
     state?: string;
-    sector?: string;
     size?: string;
-    annual_revenue?: number;
     number_of_employees?: number;
+    annual_revenue?: number;
   };
   contact: {
     name: string;
@@ -27,21 +27,17 @@ interface ValidationRequest {
     phone?: string;
     role?: string;
     observations?: string;
+    origin?: string;
   };
   opportunity?: {
     title: string;
     description?: string;
     value?: number;
-    expected_close_date?: string;
     probability?: number;
+    expected_close_date?: string;
   };
-  ai_metadata: {
-    confidence_score: number;
-    conversation_source: string;
-    conversation_summary?: string;
-    extracted_at: string;
-    ai_model?: string;
-  };
+  source?: string;
+  confidence?: number;
 }
 
 serve(async (req) => {
@@ -51,15 +47,23 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
-    const validationData: ValidationRequest = await req.json();
+    const data: ValidationRequest = await req.json();
     
-    console.log('Validating AI lead data:', JSON.stringify(validationData, null, 2));
+    console.log('Validating AI lead data:', JSON.stringify(data, null, 2));
 
-    const validation = {
+    const result = {
       isValid: true,
       warnings: [] as string[],
       errors: [] as string[],
@@ -68,135 +72,122 @@ serve(async (req) => {
         contact: null as any
       },
       preview: {
-        will_create_company: true,
-        will_create_contact: true,
-        will_create_opportunity: !!validationData.opportunity
+        company: data.company,
+        contact: data.contact,
+        opportunity: data.opportunity || null,
+        confidence: data.confidence,
+        source: data.source
       }
     };
 
-    // Validate required fields
-    if (!validationData.company?.name) {
-      validation.errors.push('Nome da empresa é obrigatório');
-      validation.isValid = false;
+    // Basic validation
+    if (!data.company?.name) {
+      result.errors.push('Nome da empresa é obrigatório');
+    }
+    
+    if (!data.contact?.name) {
+      result.errors.push('Nome do contato é obrigatório');
     }
 
-    if (!validationData.contact?.name) {
-      validation.errors.push('Nome do contato é obrigatório');
-      validation.isValid = false;
-    }
-
-    // Check for duplicate company
-    if (validationData.company.cnpj) {
-      const { data: existingCompanyByCNPJ } = await supabase
+    // Check for existing company
+    if (data.company.cnpj) {
+      const { data: existingCompany } = await supabase
         .from('companies')
-        .select('id, name, type, created_at')
-        .eq('cnpj', validationData.company.cnpj)
-        .maybeSingle();
+        .select('id, name, type')
+        .eq('cnpj', data.company.cnpj)
+        .single();
       
-      if (existingCompanyByCNPJ) {
-        validation.duplicates.company = existingCompanyByCNPJ;
-        validation.preview.will_create_company = false;
-        validation.warnings.push(`Empresa já existe (CNPJ): ${existingCompanyByCNPJ.name}`);
+      if (existingCompany) {
+        result.duplicates.company = existingCompany;
+        result.warnings.push(`Empresa já existe no sistema (CNPJ: ${data.company.cnpj})`);
+      }
+    } else {
+      const { data: existingCompany } = await supabase
+        .from('companies')
+        .select('id, name, type')
+        .ilike('name', data.company.name)
+        .single();
+      
+      if (existingCompany) {
+        result.duplicates.company = existingCompany;
+        result.warnings.push(`Empresa similar já existe no sistema: "${existingCompany.name}"`);
       }
     }
 
-    if (!validation.duplicates.company && validationData.company.name) {
-      const { data: existingCompanyByName } = await supabase
-        .from('companies')
-        .select('id, name, type, created_at')
-        .ilike('name', validationData.company.name)
-        .maybeSingle();
-      
-      if (existingCompanyByName) {
-        validation.duplicates.company = existingCompanyByName;
-        validation.preview.will_create_company = false;
-        validation.warnings.push(`Empresa similar já existe: ${existingCompanyByName.name}`);
-      }
-    }
-
-    // Check for duplicate contact (only if we have a company to check against)
-    if (validation.duplicates.company && validationData.contact.email) {
-      const { data: existingContactByEmail } = await supabase
+    // Check for existing contact (if company exists)
+    if (result.duplicates.company && data.contact.email) {
+      const { data: existingContact } = await supabase
         .from('contacts')
-        .select('id, name, email, created_at')
-        .eq('company_id', validation.duplicates.company.id)
-        .eq('email', validationData.contact.email)
-        .maybeSingle();
+        .select('id, name, email')
+        .eq('company_id', result.duplicates.company.id)
+        .eq('email', data.contact.email)
+        .single();
       
-      if (existingContactByEmail) {
-        validation.duplicates.contact = existingContactByEmail;
-        validation.preview.will_create_contact = false;
-        validation.warnings.push(`Contato já existe (email): ${existingContactByEmail.name}`);
+      if (existingContact) {
+        result.duplicates.contact = existingContact;
+        result.warnings.push(`Contato já existe na empresa: ${existingContact.email}`);
       }
     }
 
-    // Validate AI confidence score
-    if (validationData.ai_metadata.confidence_score < 0.7) {
-      validation.warnings.push(`Confiança da IA baixa: ${(validationData.ai_metadata.confidence_score * 100).toFixed(0)}%`);
+    // Validate AI confidence
+    if (data.confidence && data.confidence < 0.5) {
+      result.warnings.push('Baixa confiança da IA (< 50%)');
     }
 
-    // Validate opportunity data if provided
-    if (validationData.opportunity) {
-      if (!validationData.opportunity.title) {
-        validation.errors.push('Título da oportunidade é obrigatório');
-        validation.isValid = false;
+    // Validate opportunity
+    if (data.opportunity) {
+      if (!data.opportunity.title) {
+        result.errors.push('Título da oportunidade é obrigatório');
       }
-      
-      if (validationData.opportunity.value && validationData.opportunity.value <= 0) {
-        validation.warnings.push('Valor da oportunidade deve ser maior que zero');
+      if (data.opportunity.value && data.opportunity.value <= 0) {
+        result.warnings.push('Valor da oportunidade deve ser maior que zero');
       }
     }
 
-    // Validate contact information quality
-    if (!validationData.contact.email && !validationData.contact.phone) {
-      validation.warnings.push('Contato não possui email nem telefone');
+    // Validate contact info
+    if (!data.contact.email && !data.contact.phone) {
+      result.warnings.push('Contato não possui email nem telefone');
     }
 
-    // Check pipeline stages availability
-    const { data: stageData } = await supabase
+    // Check if "Novo Lead" pipeline stage exists
+    const { data: pipelineStage, error: stageError } = await supabase
       .from('pipeline_stages')
       .select('id, name')
       .eq('name', 'Novo Lead')
-      .maybeSingle();
+      .single();
 
-    if (!stageData && validationData.opportunity) {
-      validation.warnings.push('Stage "Novo Lead" não encontrado no pipeline');
+    if (stageError || !pipelineStage) {
+      result.errors.push('Etapa "Novo Lead" não encontrada no pipeline');
     }
 
-    const result = {
-      success: true,
-      validation,
-      data_preview: {
-        company: {
-          ...validationData.company,
-          type: 'Lead',
-          source: 'ai'
-        },
-        contact: {
-          ...validationData.contact,
-          source: 'ai'
-        },
-        opportunity: validationData.opportunity ? {
-          ...validationData.opportunity,
-          source: 'ai'
-        } : null
-      }
-    };
+    // Set validation result
+    result.isValid = result.errors.length === 0;
 
     console.log('Validation completed:', result);
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify(result),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
     console.error('Error in ai-lead-validate function:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    return new Response(
+      JSON.stringify({ 
+        isValid: false,
+        error: error.message || 'Erro interno do servidor',
+        warnings: [],
+        errors: [error.message || 'Erro interno do servidor'],
+        duplicates: { company: null, contact: null },
+        preview: null
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

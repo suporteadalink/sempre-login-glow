@@ -2,11 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 interface AILeadData {
   company: {
     name: string;
@@ -14,12 +9,12 @@ interface AILeadData {
     email?: string;
     phone?: string;
     website?: string;
+    sector?: string;
     city?: string;
     state?: string;
-    sector?: string;
     size?: string;
-    annual_revenue?: number;
     number_of_employees?: number;
+    annual_revenue?: number;
   };
   contact: {
     name: string;
@@ -27,27 +22,23 @@ interface AILeadData {
     phone?: string;
     role?: string;
     observations?: string;
+    origin?: string;
   };
   opportunity?: {
     title: string;
     description?: string;
     value?: number;
-    expected_close_date?: string;
     probability?: number;
+    expected_close_date?: string;
   };
-  ai_metadata: {
-    confidence_score: number;
-    conversation_source: string;
-    conversation_summary?: string;
-    extracted_at: string;
-    ai_model?: string;
-  };
-  n8n_metadata?: {
-    workflow_id?: string;
-    execution_id?: string;
-    webhook_token?: string;
-  };
+  source?: string;
+  confidence?: number;
 }
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -56,205 +47,229 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
     const aiData: AILeadData = await req.json();
     
     console.log('Received AI lead data:', JSON.stringify(aiData, null, 2));
 
     // Validate required fields
-    if (!aiData.company?.name || !aiData.contact?.name) {
-      throw new Error('Company name and contact name are required');
+    if (!aiData.company?.name) {
+      throw new Error('Nome da empresa é obrigatório');
+    }
+    
+    if (!aiData.contact?.name) {
+      throw new Error('Nome do contato é obrigatório');
     }
 
-    // Check for duplicate company by CNPJ or name
+    // Get first admin user as default owner (fallback to null if none found)
+    const { data: adminUsers } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'admin')
+      .eq('status', 'Ativo')
+      .limit(1);
+    
+    const defaultOwnerId = adminUsers?.[0]?.id || null;
+
+    // Check if company already exists (by CNPJ if provided, otherwise by name)
     let existingCompany = null;
     if (aiData.company.cnpj) {
-      const { data } = await supabase
+      const { data: companyByCnpj } = await supabase
         .from('companies')
-        .select('id, name')
+        .select('id, name, owner_id')
         .eq('cnpj', aiData.company.cnpj)
-        .maybeSingle();
-      existingCompany = data;
+        .single();
+      existingCompany = companyByCnpj;
     }
     
     if (!existingCompany) {
-      const { data } = await supabase
+      const { data: companyByName } = await supabase
         .from('companies')
-        .select('id, name')
+        .select('id, name, owner_id')
         .ilike('name', aiData.company.name)
-        .maybeSingle();
-      existingCompany = data;
+        .single();
+      existingCompany = companyByName;
     }
 
     let companyId: number;
-    let contactId: number;
-    let opportunityId: number | null = null;
-
-    // Create or update company
+    let companyOwnerId = defaultOwnerId;
+    
     if (existingCompany) {
+      console.log('Company already exists:', existingCompany.id);
       companyId = existingCompany.id;
-      console.log(`Using existing company: ${existingCompany.name} (ID: ${companyId})`);
+      companyOwnerId = existingCompany.owner_id || defaultOwnerId;
     } else {
-      const { data: companyData, error: companyError } = await supabase
+      // Create new company
+      const { data: newCompany, error: companyError } = await supabase
         .from('companies')
-        .insert({
+        .insert([{
           ...aiData.company,
           type: 'Lead',
-          source: 'ai',
-          ai_confidence: aiData.ai_metadata.confidence_score,
-          ai_metadata: {
-            ...aiData.ai_metadata,
-            n8n_metadata: aiData.n8n_metadata
-          }
-        })
+          source: aiData.source || 'ai',
+          ai_confidence: aiData.confidence || null,
+          ai_metadata: aiData.confidence ? { confidence: aiData.confidence, source: aiData.source } : null,
+          owner_id: defaultOwnerId
+        }])
         .select('id')
         .single();
 
-      if (companyError) throw companyError;
-      companyId = companyData.id;
-      console.log(`Created new company with ID: ${companyId}`);
+      if (companyError) {
+        console.error('Error creating company:', companyError);
+        throw companyError;
+      }
+
+      companyId = newCompany.id;
+      console.log('Created new company:', companyId);
     }
 
-    // Check for existing contact
+    // Check if contact already exists (by email within the company)
     let existingContact = null;
     if (aiData.contact.email) {
-      const { data } = await supabase
+      const { data: contactByEmail } = await supabase
         .from('contacts')
         .select('id, name')
         .eq('company_id', companyId)
         .eq('email', aiData.contact.email)
-        .maybeSingle();
-      existingContact = data;
+        .single();
+      existingContact = contactByEmail;
     }
-
+    
     if (!existingContact) {
-      const { data } = await supabase
+      const { data: contactByName } = await supabase
         .from('contacts')
         .select('id, name')
         .eq('company_id', companyId)
         .ilike('name', aiData.contact.name)
-        .maybeSingle();
-      existingContact = data;
+        .single();
+      existingContact = contactByName;
     }
 
-    // Create or update contact
+    let contactId: number;
     if (existingContact) {
+      console.log('Contact already exists:', existingContact.id);
       contactId = existingContact.id;
-      console.log(`Using existing contact: ${existingContact.name} (ID: ${contactId})`);
     } else {
-      const { data: contactData, error: contactError } = await supabase
+      // Create new contact
+      const { data: newContact, error: contactError } = await supabase
         .from('contacts')
-        .insert({
+        .insert([{
           ...aiData.contact,
           company_id: companyId,
-          source: 'ai',
-          ai_confidence: aiData.ai_metadata.confidence_score,
-          ai_metadata: {
-            ...aiData.ai_metadata,
-            n8n_metadata: aiData.n8n_metadata
-          }
-        })
+          source: aiData.source || 'ai',
+          ai_confidence: aiData.confidence || null,
+          ai_metadata: aiData.confidence ? { confidence: aiData.confidence, source: aiData.source } : null,
+          owner_id: companyOwnerId
+        }])
         .select('id')
         .single();
 
-      if (contactError) throw contactError;
-      contactId = contactData.id;
-      console.log(`Created new contact with ID: ${contactId}`);
+      if (contactError) {
+        console.error('Error creating contact:', contactError);
+        throw contactError;
+      }
+
+      contactId = newContact.id;
+      console.log('Created new contact:', contactId);
     }
 
     // Create opportunity if provided
-    if (aiData.opportunity) {
+    let opportunityId: number | null = null;
+    if (aiData.opportunity?.title) {
       // Get the "Novo Lead" pipeline stage
-      const { data: stageData, error: stageError } = await supabase
+      const { data: pipelineStage } = await supabase
         .from('pipeline_stages')
         .select('id')
         .eq('name', 'Novo Lead')
         .single();
 
-      if (stageError) {
-        console.warn('Could not find "Novo Lead" stage, using first available stage');
-        const { data: firstStage } = await supabase
-          .from('pipeline_stages')
-          .select('id')
-          .order('order')
-          .limit(1)
-          .single();
-        
-        if (!firstStage) throw new Error('No pipeline stages configured');
-        
-        var stageId = firstStage.id;
-      } else {
-        var stageId = stageData.id;
+      if (!pipelineStage) {
+        throw new Error('Pipeline stage "Novo Lead" not found');
       }
 
-      const { data: opportunityData, error: opportunityError } = await supabase
+      const { data: newOpportunity, error: opportunityError } = await supabase
         .from('opportunities')
-        .insert({
+        .insert([{
           ...aiData.opportunity,
           company_id: companyId,
           contact_id: contactId,
-          stage_id: stageId,
-          owner_id: null, // Will be assigned later
-          source: 'ai',
-          ai_confidence: aiData.ai_metadata.confidence_score,
-          ai_metadata: {
-            ...aiData.ai_metadata,
-            n8n_metadata: aiData.n8n_metadata
-          }
-        })
+          stage_id: pipelineStage.id,
+          source: aiData.source || 'ai',
+          ai_confidence: aiData.confidence || null,
+          ai_metadata: aiData.confidence ? { confidence: aiData.confidence, source: aiData.source } : null,
+          owner_id: companyOwnerId
+        }])
         .select('id')
         .single();
 
-      if (opportunityError) throw opportunityError;
-      opportunityId = opportunityData.id;
-      console.log(`Created new opportunity with ID: ${opportunityId}`);
+      if (opportunityError) {
+        console.error('Error creating opportunity:', opportunityError);
+        throw opportunityError;
+      }
+
+      opportunityId = newOpportunity.id;
+      console.log('Created new opportunity:', opportunityId);
     }
 
     // Log the activity
-    await supabase
+    const { error: activityError } = await supabase
       .from('activity_log')
-      .insert({
-        description: `Lead automaticamente criado pela IA: ${aiData.company.name} - ${aiData.contact.name}`,
-        type: 'COMPANY_CREATED',
-        user_id: null,
+      .insert([{
+        description: `Lead da IA processado: empresa "${aiData.company.name}", contato "${aiData.contact.name}"${opportunityId ? `, oportunidade "${aiData.opportunity?.title}"` : ''}`,
+        type: 'AI_LEAD_CREATED',
+        source: aiData.source || 'ai',
+        ai_metadata: aiData.confidence ? { confidence: aiData.confidence, source: aiData.source } : null,
         related_company_id: companyId,
         related_opportunity_id: opportunityId,
-        source: 'ai',
-        ai_metadata: {
-          confidence_score: aiData.ai_metadata.confidence_score,
-          conversation_source: aiData.ai_metadata.conversation_source,
-          n8n_metadata: aiData.n8n_metadata
+        user_id: companyOwnerId
+      }]);
+
+    if (activityError) {
+      console.error('Error logging activity:', activityError);
+      // Don't throw here, as the main operation was successful
+    }
+
+    console.log('AI lead processing completed successfully');
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: 'Lead processado com sucesso',
+        data: {
+          company_id: companyId,
+          contact_id: contactId,
+          opportunity_id: opportunityId,
+          confidence: aiData.confidence,
+          source: aiData.source
         }
-      });
-
-    const result = {
-      success: true,
-      data: {
-        company_id: companyId,
-        contact_id: contactId,
-        opportunity_id: opportunityId,
-        confidence_score: aiData.ai_metadata.confidence_score
-      },
-      message: 'Lead criado com sucesso pela IA'
-    };
-
-    console.log('AI lead intake completed:', result);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
     console.error('Error in ai-lead-intake function:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: error.message || 'Erro interno do servidor'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
