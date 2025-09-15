@@ -112,7 +112,7 @@ const formatPhone = (value: string): string => {
 const formatCurrency = (value: string): string => {
   if (!value) return '';
   const numbers = value.replace(/\D/g, '');
-  if (!numbers) return '';
+  if (numbers === '') return '';
   const amount = parseFloat(numbers) / 100;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
