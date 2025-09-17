@@ -97,15 +97,33 @@ const formatCNPJ = (value: string): string => {
     .substring(0, 18);
 };
 
-// Função para formatar telefone brasileiro (10 ou 11 dígitos)
+// Função para formatar telefone brasileiro (aceita qualquer número de dígitos)
 const formatPhone = (value: string): string => {
   const numbers = value.replace(/\D/g, '');
-  if (numbers.length <= 10) {
-    // Telefone fixo: (11) 3385-1277
+  
+  if (numbers.length === 0) return '';
+  
+  // Se tem 10 dígitos: (11) 3385-1277
+  if (numbers.length === 10) {
     return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
   }
-  // Celular: (11) 93385-1277
-  return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  
+  // Se tem 11 dígitos: (11) 93385-1277  
+  if (numbers.length === 11) {
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  }
+  
+  // Para outros tamanhos, aplica formatação básica
+  if (numbers.length <= 2) {
+    return `(${numbers}`;
+  } else if (numbers.length <= 6) {
+    return numbers.replace(/(\d{2})(\d+)/, '($1) $2');
+  } else if (numbers.length <= 10) {
+    return numbers.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3');
+  } else {
+    // Para números com mais de 11 dígitos, usa formato celular
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})(\d*)/, '($1) $2-$3$4');
+  }
 };
 
 // Função para formatar valor monetário
@@ -160,9 +178,9 @@ const isValidURL = (url: string): boolean => {
 const contactItemSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string()
-    .min(14, "Telefone é obrigatório")
-    .max(15, "Telefone inválido")
-    .regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, "Formato: (11) 93385-1277"),
+    .min(10, "Telefone é obrigatório")
+    .max(20, "Telefone muito longo")
+    .regex(/^\(\d{2}\) \d{4,5}-?\d*$/, "Formato: (11) 93385-1277 ou similar"),
   role: z.string().min(1, "Cargo é obrigatório")
 });
 
@@ -198,9 +216,10 @@ const companySchema = z.object({
   state: z.string().optional(),
   phone: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
-    return /^\(\d{2}\) \d{4,5}-\d{4}$/.test(val);
+    // Aceita qualquer número formatado que comece com (XX) e tenha pelo menos alguns dígitos
+    return /^\(\d{2}\) \d{4,5}-?\d*$/.test(val);
   }, {
-    message: "Formato: (11) 93385-1277"
+    message: "Formato: (11) 93385-1277 ou similar"
   }),
   email: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
@@ -346,8 +365,43 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
   // Watch the type field to show/hide Lead-specific fields
   const watchedType = form.watch("type");
 
+  // Fetch contacts when editing a company
+  const { data: companyContacts = [] } = useQuery({
+    queryKey: ["company-contacts", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("company_id", company.id)
+        .order("created_at");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!company?.id
+  });
+
   useEffect(() => {
     if (company) {
+      // Prepare contacts array with existing contacts + empty slots
+      const contactsArray = [
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" },
+        { name: "", phone: "", role: "" }
+      ];
+      
+      // Fill with existing contacts
+      companyContacts.forEach((contact, index) => {
+        if (index < 3) {
+          contactsArray[index] = {
+            name: contact.name || "",
+            phone: contact.phone || "",
+            role: contact.role || ""
+          };
+        }
+      });
+
       form.reset({
         name: company.name,
         cnpj: company.cnpj || "",
@@ -364,14 +418,10 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         owner_id: "",
         stage_id: "",
         opportunity_title: "",
-        contacts: [
-          { name: "", phone: "", role: "" },
-          { name: "", phone: "", role: "" },
-          { name: "", phone: "", role: "" }
-        ]
+        contacts: contactsArray
       });
     }
-  }, [company, form]);
+  }, [company, companyContacts, form]);
 
   // Initialize owner_id with current user when not editing
   useEffect(() => {
@@ -467,9 +517,38 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
 
         if (error) throw error;
 
+        // Update contacts for existing company
+        // First, delete existing contacts
+        await supabase
+          .from('contacts')
+          .delete()
+          .eq('company_id', company.id);
+
+        // Then, create new contacts
+        const validContacts = data.contacts.filter(contact => 
+          contact.name.trim() !== "" || contact.phone.trim() !== "" || contact.role.trim() !== ""
+        );
+
+        if (validContacts.length > 0) {
+          for (const contact of validContacts) {
+            const validatedContact = contactItemSchema.parse(contact);
+            const { error: contactError } = await supabase
+              .from('contacts')
+              .insert({
+                name: validatedContact.name,
+                phone: validatedContact.phone,
+                role: validatedContact.role,
+                company_id: company.id,
+                owner_id: companyOwnerId
+              });
+
+            if (contactError) throw contactError;
+          }
+        }
+
         toast({
           title: "Sucesso",
-          description: "Empresa atualizada com sucesso.",
+          description: "Empresa e contatos atualizados com sucesso.",
         });
       } else {
         // Create company
