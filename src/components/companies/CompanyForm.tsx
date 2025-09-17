@@ -126,6 +126,13 @@ const formatPhone = (value: string): string => {
   }
 };
 
+// Função para validar telefone
+const isValidPhone = (phone: string): boolean => {
+  if (!phone || phone.trim() === "") return true; // Campo opcional
+  // Aceita formatos: (11) 3385-1277, (11) 93385-1277 ou variações
+  return /^\(\d{2}\) \d{4,5}-?\d{4}$/.test(phone);
+};
+
 // Função para formatar valor monetário
 const formatCurrency = (value: string | number | null | undefined): string => {
   if (value == null || value === '') return '';
@@ -180,7 +187,7 @@ const contactItemSchema = z.object({
   phone: z.string()
     .min(10, "Telefone é obrigatório")
     .max(20, "Telefone muito longo")
-    .regex(/^\(\d{2}\) \d{4,5}-?\d*$/, "Formato: (11) 93385-1277 ou similar"),
+    .regex(/^\(\d{2}\) \d{4,5}-?\d{4}$/, "Formato: (11) 93385-1277 ou similar"),
   role: z.string().min(1, "Cargo é obrigatório")
 });
 
@@ -217,7 +224,7 @@ const companySchema = z.object({
   phone: z.string().optional().refine((val) => {
     if (!val || val.trim() === "") return true;
     // Aceita qualquer número formatado que comece com (XX) e tenha pelo menos alguns dígitos
-    return /^\(\d{2}\) \d{4,5}-?\d*$/.test(val);
+    return /^\(\d{2}\) \d{4,5}-?\d{4}$/.test(val);
   }, {
     message: "Formato: (11) 93385-1277 ou similar"
   }),
@@ -257,7 +264,7 @@ const companySchema = z.object({
       }
       
       // Validar formato do telefone do primeiro contato
-      if (!/^\(\d{2}\) \d{4,5}-?\d*$/.test(firstContact.phone)) {
+      if (!/^\(\d{2}\) \d{4,5}-?\d{4}$/.test(firstContact.phone)) {
         console.log('🔍 DEBUG: Telefone do primeiro contato inválido');
         return false;
       }
@@ -276,7 +283,7 @@ const companySchema = z.object({
         }
         
         // Validar formato do telefone
-        if (!/^\(\d{2}\) \d{4,5}-?\d*$/.test(contact.phone)) {
+        if (!/^\(\d{2}\) \d{4,5}-?\d{4}$/.test(contact.phone)) {
           console.log(`🔍 DEBUG: Telefone do contato ${i + 1} inválido`);
           return false;
         }
