@@ -240,45 +240,62 @@ const companySchema = z.object({
   opportunity_title: z.string().optional(),
   contacts: z.array(z.object({
     name: z.string(),
-    phone: z.string(),
+    phone: z.string(), 
     role: z.string()
   })).length(3).refine((contacts) => {
-    // Primeiro contato deve estar completo
-    const firstContact = contacts[0];
-    if (!firstContact.name || !firstContact.phone || !firstContact.role) {
-      return false;
-    }
+    console.log('🔍 DEBUG: Validando contatos:', contacts);
     
-    // Validar primeiro contato
-    try {
-      contactItemSchema.parse(firstContact);
-    } catch {
-      return false;
+    // Primeiro contato deve estar completo se algum campo estiver preenchido
+    const firstContact = contacts[0];
+    const hasAnyFirstContactField = firstContact.name.trim() || firstContact.phone.trim() || firstContact.role.trim();
+    
+    if (hasAnyFirstContactField) {
+      // Se tem algum campo do primeiro contato, todos devem estar preenchidos
+      if (!firstContact.name.trim() || !firstContact.phone.trim() || !firstContact.role.trim()) {
+        console.log('🔍 DEBUG: Primeiro contato incompleto');
+        return false;
+      }
+      
+      // Validar formato do telefone do primeiro contato
+      if (!/^\(\d{2}\) \d{4,5}-?\d*$/.test(firstContact.phone)) {
+        console.log('🔍 DEBUG: Telefone do primeiro contato inválido');
+        return false;
+      }
     }
     
     // Validar outros contatos (se preenchidos)
     for (let i = 1; i < contacts.length; i++) {
       const contact = contacts[i];
-      const hasAnyField = contact.name || contact.phone || contact.role;
+      const hasAnyField = contact.name.trim() || contact.phone.trim() || contact.role.trim();
       
       if (hasAnyField) {
-        try {
-          contactItemSchema.parse(contact);
-        } catch {
+        // Se tem algum campo, todos devem estar preenchidos
+        if (!contact.name.trim() || !contact.phone.trim() || !contact.role.trim()) {
+          console.log(`🔍 DEBUG: Contato ${i + 1} incompleto`);
+          return false;
+        }
+        
+        // Validar formato do telefone
+        if (!/^\(\d{2}\) \d{4,5}-?\d*$/.test(contact.phone)) {
+          console.log(`🔍 DEBUG: Telefone do contato ${i + 1} inválido`);
           return false;
         }
       }
     }
     
+    console.log('🔍 DEBUG: Todos os contatos válidos');
     return true;
   }, {
-    message: "Primeiro contato é obrigatório. Se preencher outros contatos, todos os campos são obrigatórios."
+    message: "Se preencher algum campo do contato, todos os campos do contato são obrigatórios."
   })
 }).refine((data) => {
+  console.log('🔍 DEBUG: Validando dados do formulário:', data);
   // Se tipo é Lead, título da oportunidade é obrigatório
   if (data.type === "Lead" && !data.opportunity_title?.trim()) {
+    console.log('🔍 DEBUG: Título da oportunidade obrigatório para Lead');
     return false;
   }
+  console.log('🔍 DEBUG: Validação do formulário OK');
   return true;
 }, {
   message: "Título da oportunidade é obrigatório para empresas do tipo Lead",
@@ -431,7 +448,10 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
   }, [user?.id, isAdmin, company, form]);
 
   const onSubmit = async (data: CompanyFormData) => {
+    console.log('🔍 DEBUG: Form submit iniciado', data);
     setLoading(true);
+    
+    console.log('🔍 DEBUG: Iniciando validação manual');
     
     // Validar campos obrigatórios manualmente antes de tentar salvar
     const missingFields = [];
@@ -444,24 +464,14 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       missingFields.push("Tipo da empresa");
     }
     
-    // Validar primeiro contato (obrigatório)
-    const firstContact = data.contacts[0];
-    if (!firstContact.name?.trim()) {
-      missingFields.push("Nome do primeiro contato");
-    }
-    if (!firstContact.phone?.trim()) {
-      missingFields.push("Telefone do primeiro contato");
-    }
-    if (!firstContact.role?.trim()) {
-      missingFields.push("Cargo do primeiro contato");
-    }
-    
     // Se tipo é Lead, validar campos específicos
     if (data.type === "Lead") {
       if (!data.opportunity_title?.trim()) {
         missingFields.push("Título da oportunidade");
       }
     }
+    
+    console.log('🔍 DEBUG: Campos obrigatórios validados, faltando:', missingFields);
     
     // Se há campos obrigatórios faltando, mostrar erro específico
     if (missingFields.length > 0) {
@@ -652,7 +662,10 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       </DialogHeader>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={(e) => {
+          console.log('🔍 DEBUG: Form onSubmit disparado');
+          form.handleSubmit(onSubmit)(e);
+        }} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -977,8 +990,8 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               {[0, 1, 2].map((index) => (
                 <div key={index} className="border rounded-lg p-4 bg-muted/30">
                   <h4 className="font-medium mb-3">
-                    Contato {index + 1} {index === 0 && <span className="text-destructive">*</span>}
-                    {index > 0 && <span className="text-muted-foreground text-sm">(Opcional)</span>}
+                    Contato {index + 1}
+                    <span className="text-muted-foreground text-sm ml-2">(Opcional)</span>
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
@@ -986,7 +999,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                       name={`contacts.${index}.name`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nome {index === 0 && "*"}</FormLabel>
+                          <FormLabel>Nome</FormLabel>
                           <FormControl>
                             <Input placeholder="Nome do contato" {...field} />
                           </FormControl>
@@ -1000,7 +1013,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                       name={`contacts.${index}.phone`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Telefone {index === 0 && "*"}</FormLabel>
+                          <FormLabel>Telefone</FormLabel>
                           <FormControl>
                             <Input 
                               placeholder="(11) 93385-1277" 
@@ -1023,7 +1036,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                       name={`contacts.${index}.role`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Cargo {index === 0 && "*"}</FormLabel>
+                          <FormLabel>Cargo</FormLabel>
                           <FormControl>
                             <Input placeholder="Ex: Diretor Comercial" {...field} />
                           </FormControl>
@@ -1044,8 +1057,14 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
             <Button 
               type="submit" 
               disabled={loading}
+              onClick={(e) => {
+                console.log('🔍 DEBUG: Botão salvar clicado');
+                console.log('🔍 DEBUG: Form errors:', form.formState.errors);
+                console.log('🔍 DEBUG: Form isValid:', form.formState.isValid);
+                console.log('🔍 DEBUG: Form values:', form.getValues());
+              }}
             >
-              {loading ? "Salvando..." : "Salvar"}
+              {loading ? "Salvando..." : company ? "Atualizar" : "Salvar"}
             </Button>
           </div>
         </form>
