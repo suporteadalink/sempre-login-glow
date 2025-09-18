@@ -6,18 +6,22 @@ const corsHeaders = {
 }
 
 interface CompanyData {
-  nome: string;
+  name: string;
   cnpj?: string;
-  cidade?: string;
-  estado?: string;
-  setor?: string;
-  porte?: string;
-  funcionarios?: number;
-  receita_anual?: number;
-  telefone?: string;
+  phone?: string;
   email?: string;
+  city?: string;
+  state?: string;
+  sector?: string;
   website?: string;
-  tipo: 'Lead' | 'Cliente';
+  type?: string;
+  annual_revenue?: number;
+  number_of_employees?: number;
+  size?: string;
+  owner_id?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  contact_cargo?: string;
 }
 
 interface ImportRequest {
@@ -121,118 +125,175 @@ Deno.serve(async (req) => {
       details: []
     }
 
-    // Process companies in batches
-    const batchSize = 50
-    for (let i = 0; i < companies.length; i += batchSize) {
-      const batch = companies.slice(i, i + batchSize)
-      
-      for (let j = 0; j < batch.length; j++) {
-        const company = batch[j]
-        const rowNumber = i + j + 1
+    // Filter valid companies and check for duplicates
+    const validCompanies: CompanyData[] = [];
+    
+    for (let i = 0; i < companies.length; i++) {
+      const company = companies[i];
+      const rowNumber = i + 1;
 
-        try {
-          // Check for duplicate CNPJ if provided
-          if (company.cnpj) {
-            const { data: existingCompany } = await supabaseClient
-              .from('companies')
-              .select('id')
-              .eq('cnpj', company.cnpj)
-              .single()
-
-            if (existingCompany) {
-              result.errors++
-              result.details.push({
-                row: rowNumber,
-                status: 'error',
-                message: `CNPJ ${company.cnpj} já existe`
-              })
-              continue
-            }
-          }
-
-          // Prepare company data for insertion
-          const companyData = {
-            name: company.nome,
-            cnpj: company.cnpj || null,
-            city: company.cidade || null,
-            state: company.estado || null,
-            sector: company.setor || null,
-            size: company.porte || null,
-            number_of_employees: company.funcionarios || null,
-            annual_revenue: company.receita_anual || null,
-            phone: company.telefone || null,
-            email: company.email || null,
-            website: company.website || null,
-            type: company.tipo,
-            owner_id: actualOwnerId
-          }
-
-          // Insert company
-          const { data: insertedCompany, error: insertError } = await supabaseClient
+      try {
+        // Check for duplicate CNPJ if provided
+        if (company.cnpj) {
+          const { data: existingCompany } = await supabaseClient
             .from('companies')
-            .insert(companyData)
             .select('id')
+            .eq('cnpj', company.cnpj)
             .single()
 
-          if (insertError) {
-            console.error('Insert error:', insertError)
+          if (existingCompany) {
             result.errors++
             result.details.push({
               row: rowNumber,
               status: 'error',
-              message: `Erro ao inserir: ${insertError.message}`
+              message: `CNPJ ${company.cnpj} já existe`
             })
             continue
           }
+        }
 
-          // If company type is Lead, create an opportunity
-          if (company.tipo === 'Lead' && insertedCompany) {
+        validCompanies.push(company);
+      } catch (error) {
+        console.error('Error validating company:', error);
+        result.errors++;
+        result.details.push({
+          row: rowNumber,
+          status: 'error',
+          message: `Erro na validação: ${error.message}`
+        });
+      }
+    }
+
+    if (validCompanies.length > 0) {
+      try {
+        // Insert companies in batches
+        const companiesToInsert = validCompanies.map(company => ({
+          name: company.name,
+          cnpj: company.cnpj,
+          phone: company.phone,
+          email: company.email,
+          city: company.city,
+          state: company.state,
+          sector: company.sector,
+          website: company.website,
+          type: company.type || 'Lead',
+          annual_revenue: company.annual_revenue,
+          number_of_employees: company.number_of_employees,
+          size: company.size,
+          owner_id: company.owner_id || actualOwnerId,
+          source: 'import'
+        }));
+
+        const { data: insertedCompanies, error: insertError } = await supabaseClient
+          .from('companies')
+          .insert(companiesToInsert)
+          .select('id, name');
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        console.log(`Imported ${insertedCompanies.length} companies successfully`);
+        
+        // Create contacts for companies that have contact information
+        const contactsToCreate = [];
+        for (let i = 0; i < validCompanies.length; i++) {
+          const company = validCompanies[i];
+          const insertedCompany = insertedCompanies[i];
+          
+          if (company.contact_name && insertedCompany) {
+            contactsToCreate.push({
+              name: company.contact_name,
+              phone: company.contact_phone,
+              role: company.contact_cargo,
+              email: company.email, // Usar o email da empresa como fallback
+              company_id: insertedCompany.id,
+              owner_id: company.owner_id || actualOwnerId,
+              source: 'import'
+            });
+          }
+        }
+        
+        // Insert contacts if any
+        if (contactsToCreate.length > 0) {
+          const { data: insertedContacts, error: contactsError } = await supabaseClient
+            .from('contacts')
+            .insert(contactsToCreate)
+            .select('id, name, company_id');
+            
+          if (contactsError) {
+            console.error('Error inserting contacts:', contactsError);
+            result.warnings++;
+          } else {
+            console.log(`Created ${insertedContacts?.length || 0} contacts`);
+            if (insertedContacts?.length) {
+              result.warnings++;
+            }
+          }
+        }
+
+        // Create opportunities for Lead companies
+        const opportunitiesToCreate = [];
+        for (let i = 0; i < validCompanies.length; i++) {
+          const company = validCompanies[i];
+          const insertedCompany = insertedCompanies[i];
+          
+          if (company.type === 'Lead' && insertedCompany) {
             // Get the first pipeline stage (usually "Novo Lead")
             const { data: pipelineStages } = await supabaseClient
               .from('pipeline_stages')
               .select('id')
               .order('order')
-              .limit(1)
+              .limit(1);
 
             if (pipelineStages && pipelineStages.length > 0) {
-              const opportunityData = {
-                title: `Oportunidade - ${company.nome}`,
+              opportunitiesToCreate.push({
+                title: `Oportunidade - ${company.name}`,
                 description: 'Oportunidade criada automaticamente via importação',
-                value: company.receita_anual || 0,
+                value: company.annual_revenue || 0,
                 company_id: insertedCompany.id,
                 stage_id: pipelineStages[0].id,
-                owner_id: actualOwnerId,
+                owner_id: company.owner_id || actualOwnerId,
                 probability: 10
-              }
-
-              const { error: opportunityError } = await supabaseClient
-                .from('opportunities')
-                .insert(opportunityData)
-
-              if (opportunityError) {
-                console.error('Opportunity creation error:', opportunityError)
-                // Don't fail the company import if opportunity creation fails
-                result.warnings++
-              }
+              });
             }
           }
+        }
 
-          result.success++
+        // Insert opportunities if any
+        if (opportunitiesToCreate.length > 0) {
+          const { error: opportunityError } = await supabaseClient
+            .from('opportunities')
+            .insert(opportunitiesToCreate);
+
+          if (opportunityError) {
+            console.error('Error inserting opportunities:', opportunityError);
+            result.warnings++;
+          } else {
+            console.log(`Created ${opportunitiesToCreate.length} opportunities`);
+          }
+        }
+
+        // Update success count
+        result.success = insertedCompanies.length;
+        
+        // Add success details for each company
+        insertedCompanies.forEach((company, index) => {
           result.details.push({
-            row: rowNumber,
+            row: result.details.length + 1,
             status: 'success',
             message: 'Importado com sucesso'
-          })
+          });
+        });
 
-        } catch (error) {
-          console.error('Processing error:', error)
-          result.errors++
-          result.details.push({
-            row: rowNumber,
-            status: 'error',
-            message: `Erro inesperado: ${error.message}`
-          })
-        }
+      } catch (error) {
+        console.error('Batch insert error:', error);
+        result.errors += validCompanies.length;
+        result.details.push({
+          row: 0,
+          status: 'error',
+          message: `Erro na inserção em lote: ${error.message}`
+        });
       }
     }
 
@@ -241,7 +302,7 @@ Deno.serve(async (req) => {
       await supabaseClient
         .from('activity_log')
         .insert({
-          description: `Importação em massa: ${result.success} empresas importadas com sucesso, ${result.errors} erros`,
+          description: `Importação em massa: ${result.success} empresas importadas com sucesso, ${result.errors} erros, ${result.warnings} avisos`,
           type: 'BULK_IMPORT',
           user_id: user.id
         })

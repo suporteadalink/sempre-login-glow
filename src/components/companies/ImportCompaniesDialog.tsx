@@ -18,23 +18,13 @@ import { useSalespeople } from '@/hooks/useSalespeople';
 import { useQuery } from '@tanstack/react-query';
 
 interface ImportRecord {
-  row: number;
-  data: {
-    nome: string;
-    cnpj?: string;
-    cidade?: string;
-    estado?: string;
-    setor?: string;
-    porte?: string;
-    funcionarios?: number;
-    receita_anual?: number;
-    telefone?: string;
-    email?: string;
-    website?: string;
-    tipo: 'Lead' | 'Cliente';
-  };
-  status: 'valid' | 'warning' | 'error';
+  data: any;
+  status: 'valid' | 'error';
   errors: string[];
+  contact_name?: string;
+  contact_phone?: string;
+  contact_cargo?: string;
+  gerente?: string;
 }
 
 interface ImportResult {
@@ -55,34 +45,120 @@ interface ImportCompaniesDialogProps {
   onSuccess: () => void;
 }
 
-const REQUIRED_COLUMNS = ['nome'];
-const COLUMN_MAPPING = {
-  'nome': 'nome',
-  'name': 'nome',
-  'empresa': 'nome',
-  'company': 'nome',
+const REQUIRED_COLUMNS = ['name'];
+
+const COLUMN_MAPPING: Record<string, string> = {
+  // Mapeamento específico para os campos da planilha do usuário
+  'nome completo da empresa': 'name',
   'cnpj': 'cnpj',
-  'cidade': 'cidade',
-  'city': 'cidade',
-  'estado': 'estado',
-  'state': 'estado',
-  'uf': 'estado',
-  'setor': 'setor',
-  'sector': 'setor',
-  'porte': 'porte',
-  'size': 'porte',
-  'funcionarios': 'funcionarios',
-  'employees': 'funcionarios',
-  'receita_anual': 'receita_anual',
-  'revenue': 'receita_anual',
-  'annual_revenue': 'receita_anual',
-  'telefone': 'telefone',
-  'phone': 'telefone',
+  'cidade': 'city',
+  'estado': 'state',
+  'e-mail': 'email',
+  'telefone': 'phone',
+  'gerente': 'gerente',
+  'nome completo do profissional': 'contact_name',
+  'dd': 'contact_dd',
+  'celular': 'contact_celular',
+  'cargo': 'contact_cargo',
+  
+  // Mapeamentos existentes para compatibilidade
+  'nome': 'name',
+  'empresa': 'name',
   'email': 'email',
+  'setor': 'sector',
   'website': 'website',
   'site': 'website',
-  'tipo': 'tipo',
-  'type': 'tipo'
+  'tipo': 'type',
+  'receita': 'annual_revenue',
+  'receita_anual': 'annual_revenue',
+  'funcionarios': 'number_of_employees',
+  'numero_funcionarios': 'number_of_employees',
+  'tamanho': 'size',
+  // Nomes em inglês
+  'company': 'name',
+  'name': 'name',
+  'phone': 'phone',
+  'city': 'city',
+  'state': 'state',
+  'sector': 'sector',
+  'type': 'type',
+  'revenue': 'annual_revenue',
+  'employees': 'number_of_employees',
+  'size': 'size'
+};
+
+const normalizeColumnName = (column: string): string => {
+  return COLUMN_MAPPING[column.toLowerCase().trim()] || column;
+};
+
+const isValidCNPJ = (cnpj: string): boolean => {
+  if (!cnpj) return true; // CNPJ é opcional
+  // Remove caracteres não numéricos
+  const cleaned = cnpj.replace(/\D/g, '');
+  return cleaned.length === 14;
+};
+
+const isValidEmail = (email: string): boolean => {
+  if (!email) return true; // Email é opcional
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const validateRecord = (data: any, row: number, salespeople: any[]): ImportRecord => {
+  const errors: string[] = [];
+  
+  if (!data.name || data.name.toString().trim() === '') {
+    errors.push('Nome da empresa é obrigatório');
+  }
+  
+  if (data.cnpj && !isValidCNPJ(data.cnpj.toString())) {
+    errors.push('CNPJ inválido');
+  }
+  
+  if (data.email && !isValidEmail(data.email.toString())) {
+    errors.push('Email inválido');
+  }
+  
+  // Combinar DD + Celular se ambos existirem
+  let contact_phone = '';
+  if (data.contact_dd && data.contact_celular) {
+    const dd = data.contact_dd.toString().trim();
+    const celular = data.contact_celular.toString().trim();
+    contact_phone = `(${dd}) ${celular}`;
+  }
+  
+  // Validar formato do telefone combinado
+  if (contact_phone && !/^\(\d{2}\) \d{4,5}-?\d{4}$/.test(contact_phone)) {
+    errors.push('Formato de telefone inválido (DD + Celular)');
+  }
+  
+  // Validar se o gerente existe na lista de vendedores
+  let gerenteEncontrado = null;
+  if (data.gerente) {
+    const nomeGerente = data.gerente.toString().trim().toLowerCase();
+    const primeiroNome = nomeGerente.split(' ')[0];
+    
+    const gerentesEncontrados = salespeople.filter(person => 
+      person.name.toLowerCase().includes(primeiroNome)
+    );
+    
+    if (gerentesEncontrados.length === 0) {
+      errors.push(`Gerente "${data.gerente}" não encontrado no sistema`);
+    } else if (gerentesEncontrados.length > 1) {
+      errors.push(`Múltiplos gerentes encontrados para "${data.gerente}"`);
+    } else {
+      gerenteEncontrado = gerentesEncontrados[0];
+    }
+  }
+  
+  return {
+    data,
+    status: errors.length > 0 ? 'error' : 'valid',
+    errors,
+    contact_name: data.contact_name,
+    contact_phone,
+    contact_cargo: data.contact_cargo,
+    gerente: gerenteEncontrado?.name || data.gerente
+  };
 };
 
 export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: ImportCompaniesDialogProps) {
@@ -90,7 +166,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const [records, setRecords] = useState<ImportRecord[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
-  const [selectedResponsible, setSelectedResponsible] = useState<string>('');
+  const [selectedSalesperson, setSelectedSalesperson] = useState<string>('');
   
   const { data: salespeople } = useSalespeople();
   
@@ -114,65 +190,33 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const isAdmin = currentUser?.role === 'admin';
 
   const downloadTemplate = () => {
-    const template = [
+    const templateData = [
       {
-        nome: 'Empresa Exemplo Ltda',
-        cnpj: '11.222.333/0001-81',
-        cidade: 'São Paulo',
-        estado: 'SP',
-        setor: 'Tecnologia',
-        porte: 'Média',
-        funcionarios: 50,
-        receita_anual: 5000000,
-        telefone: '(11) 99999-9999',
-        email: 'contato@exemplo.com',
-        website: 'https://exemplo.com',
-        tipo: 'Lead'
+        "Profissional - Nome para Etiqueta": "João Silva",
+        "Empresa - Nome para Etiqueta": "Empresa Exemplo",
+        "Gerente": "Maria Santos", 
+        "RG": "12.345.678-9",
+        "CPF": "123.456.789-00",
+        "DD": "11",
+        "Celular": "99999-9999",
+        "Telefone": "(11) 3385-1277",
+        "E-mail": "joao@exemplo.com",
+        "Nome Completo do Profissional": "João Silva Santos",
+        "Cargo": "Gerente de TI",
+        "Nome Completo da Empresa": "Empresa Exemplo Tecnologia Ltda",
+        "Endereço": "Rua das Flores, 123",
+        "Bairro": "Centro",
+        "Cidade": "São Paulo", 
+        "Estado": "SP",
+        "CEP": "01234-567",
+        "CNPJ": "12.345.678/0001-90"
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
+    const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, 'template_importacao_empresas.xlsx');
-  };
-
-  const normalizeColumnName = (column: string): string => {
-    const normalized = column.toLowerCase().trim().replace(/\s+/g, '_');
-    return COLUMN_MAPPING[normalized] || normalized;
-  };
-
-  const validateRecord = (data: any, row: number): ImportRecord => {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Validar campos obrigatórios
-    if (!data.nome || data.nome.trim() === '') {
-      errors.push('Nome é obrigatório');
-    }
-
-
-    // Validar tipo
-    if (data.tipo && !['Lead', 'Cliente'].includes(data.tipo)) {
-      errors.push('Tipo deve ser "Lead" ou "Cliente"');
-    }
-
-    let status: 'valid' | 'warning' | 'error' = 'valid';
-    if (errors.length > 0) {
-      status = 'error';
-    } else if (warnings.length > 0) {
-      status = 'warning';
-    }
-
-    return {
-      row,
-      data: {
-        ...data,
-        tipo: data.tipo || 'Lead'
-      },
-      status,
-      errors: [...errors, ...warnings]
-    };
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "template_importacao_empresas.xlsx");
   };
 
   const processFile = useCallback((file: File) => {
@@ -322,16 +366,16 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
         console.log('Dados normalizados:', normalizedData.length, 'registros');
 
         // Validar registros
-        const validatedRecords = normalizedData.map((row, index) => 
-          validateRecord(row, index + 1)
+        const validatedData = normalizedData.map((row, index) => 
+          validateRecord(row, index + 2, salespeople || [])
         );
 
-        console.log('Validação concluída:', validatedRecords.length, 'registros processados');
+        console.log('Validação concluída:', validatedData.length, 'registros processados');
 
-        setRecords(validatedRecords);
+        setRecords(validatedData);
         setStep('preview');
         
-        toast.success(`Arquivo processado com sucesso! ${validatedRecords.length} registros encontrados.`);
+        toast.success(`Arquivo processado com sucesso! ${validatedData.length} registros encontrados.`);
         
       } catch (error) {
         console.error('Erro geral ao processar arquivo:', error);
@@ -345,7 +389,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     } else {
       reader.readAsArrayBuffer(file);
     }
-  }, []);
+  }, [salespeople]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: useCallback((acceptedFiles: File[]) => {
@@ -373,11 +417,43 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     setProgress(0);
 
     try {
+      const importData = {
+        companies: validRecords.map(record => {
+          // Encontrar o ID do gerente responsável
+          let ownerId = selectedSalesperson;
+          if (record.gerente && salespeople) {
+            const gerente = salespeople.find(person => 
+              person.name.toLowerCase().includes(record.gerente.toLowerCase().split(' ')[0])
+            );
+            if (gerente) {
+              ownerId = gerente.id;
+            }
+          }
+          
+          return {
+            name: record.data.name,
+            cnpj: record.data.cnpj,
+            phone: record.data.phone,
+            email: record.data.email,
+            city: record.data.city,
+            state: record.data.state,
+            sector: record.data.sector,
+            website: record.data.website,
+            type: record.data.type || 'Lead',
+            annual_revenue: record.data.annual_revenue ? parseFloat(record.data.annual_revenue) : null,
+            number_of_employees: record.data.number_of_employees ? parseInt(record.data.number_of_employees) : null,
+            size: record.data.size,
+            owner_id: ownerId,
+            contact_name: record.contact_name,
+            contact_phone: record.contact_phone,
+            contact_cargo: record.contact_cargo
+          };
+        }),
+        owner_id: selectedSalesperson
+      };
+
       const { data, error } = await supabase.functions.invoke('import-companies', {
-        body: { 
-          companies: validRecords.map(r => r.data),
-          owner_id: selectedResponsible === 'self' ? undefined : selectedResponsible
-        }
+        body: importData
       });
 
       if (error) throw error;
@@ -458,8 +534,8 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Modo Rigoroso:</strong> Registros com CNPJ inválido ou campos obrigatórios em branco serão rejeitados. 
-                  Corrija os erros no arquivo e importe novamente.
+                  <strong>Novo formato:</strong> A planilha deve conter campos como "Nome Completo da Empresa", "Gerente", "Nome Completo do Profissional", "DD", "Celular", "Cargo", etc. 
+                  Baixe o template para ver o formato correto.
                 </AlertDescription>
               </Alert>
             </div>
@@ -490,10 +566,10 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                 {isAdmin && salespeople && (
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <div className="space-y-2">
-                      <Label htmlFor="responsible-select">Responsável pelos Leads</Label>
-                      <Select value={selectedResponsible} onValueChange={setSelectedResponsible}>
+                      <Label htmlFor="responsible-select">Responsável padrão para empresas sem gerente específico</Label>
+                      <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
                         <SelectTrigger id="responsible-select">
-                          <SelectValue placeholder="Selecione o responsável (opcional)" />
+                          <SelectValue placeholder="Selecione o responsável padrão (opcional)" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="self">Eu mesmo ({currentUser?.name})</SelectItem>
@@ -508,7 +584,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Se não selecionar ninguém, você será o responsável pelos leads importados.
+                        Empresas com campo "Gerente" preenchido serão atribuídas automaticamente ao gerente correspondente.
                       </p>
                     </div>
                   </div>
@@ -522,28 +598,34 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                       <TableHead className="w-16">Status</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>CNPJ</TableHead>
-                      <TableHead>Cidade</TableHead>
-                      <TableHead>Tipo</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Gerente</TableHead>
+                      <TableHead>Contato</TableHead>
                       <TableHead>Erros</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {records.slice(0, 50).map((record) => (
-                      <TableRow key={record.row}>
+                    {records.slice(0, 50).map((record, index) => (
+                      <TableRow key={index}>
                         <TableCell>{getStatusIcon(record.status)}</TableCell>
-                        <TableCell className="font-medium">{record.data.nome}</TableCell>
+                        <TableCell className="font-medium">{record.data.name}</TableCell>
                         <TableCell>{record.data.cnpj || '-'}</TableCell>
-                        <TableCell>{record.data.cidade || '-'}</TableCell>
+                        <TableCell>{record.data.email || '-'}</TableCell>
+                        <TableCell>{record.gerente || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant={record.data.tipo === 'Lead' ? 'secondary' : 'default'}>
-                            {record.data.tipo}
-                          </Badge>
+                          {record.contact_name && (
+                            <div className="text-sm">
+                              <div>{record.contact_name}</div>
+                              {record.contact_phone && <div>{record.contact_phone}</div>}
+                              {record.contact_cargo && <div className="text-gray-500">{record.contact_cargo}</div>}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {record.errors.length > 0 && (
-                            <span className="text-red-600 text-sm">
+                            <div className="text-sm text-red-600">
                               {record.errors.join(', ')}
-                            </span>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
