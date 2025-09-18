@@ -92,10 +92,8 @@ const normalizeColumnName = (column: string): string => {
 };
 
 const isValidCNPJ = (cnpj: string): boolean => {
-  if (!cnpj) return true; // CNPJ é opcional
-  // Remove caracteres não numéricos
-  const cleaned = cnpj.replace(/\D/g, '');
-  return cleaned.length === 14;
+  // CNPJ é sempre opcional e aceita qualquer formato
+  return true;
 };
 
 const isValidEmail = (email: string): boolean => {
@@ -110,9 +108,7 @@ const validateRecord = (data: any, row: number, salespeople: any[]): ImportRecor
     errors.push('Nome da empresa é obrigatório');
   }
   
-  if (data.cnpj && !isValidCNPJ(data.cnpj.toString())) {
-    errors.push('CNPJ inválido');
-  }
+  // CNPJ é opcional e aceita qualquer formato - não validamos mais
   
   if (data.email && !isValidEmail(data.email.toString())) {
     errors.push('Email inválido');

@@ -133,8 +133,8 @@ Deno.serve(async (req) => {
       const rowNumber = i + 1;
 
       try {
-        // Check for duplicate CNPJ if provided
-        if (company.cnpj) {
+        // Check for duplicate CNPJ only if it's not empty and has reasonable length
+        if (company.cnpj && company.cnpj.trim().length >= 11) {
           const { data: existingCompany } = await supabaseClient
             .from('companies')
             .select('id')

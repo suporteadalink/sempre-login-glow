@@ -46,44 +46,10 @@ const BRAZILIAN_STATES = [
   { value: "TO", label: "TO - Tocantins" }
 ];
 
-// Função para validar CNPJ usando o algoritmo oficial brasileiro
+// Função para validar CNPJ - agora sempre retorna true (campo opcional)
 export const isValidCNPJ = (cnpj: string): boolean => {
-  // Remove caracteres não numéricos
-  const cleanCNPJ = cnpj.replace(/[^\d]/g, '');
-  
-  // Verifica se tem 14 dígitos
-  if (cleanCNPJ.length !== 14) return false;
-  
-  // Verifica se todos os dígitos são iguais (ex: 11111111111111)
-  if (/^(\d)\1+$/.test(cleanCNPJ)) return false;
-  
-  // Validação do primeiro dígito verificador
-  let sum = 0;
-  let weight = 5;
-  
-  for (let i = 0; i < 12; i++) {
-    sum += parseInt(cleanCNPJ[i]) * weight;
-    weight = weight === 2 ? 9 : weight - 1;
-  }
-  
-  let digit1 = sum % 11;
-  digit1 = digit1 < 2 ? 0 : 11 - digit1;
-  
-  if (parseInt(cleanCNPJ[12]) !== digit1) return false;
-  
-  // Validação do segundo dígito verificador
-  sum = 0;
-  weight = 6;
-  
-  for (let i = 0; i < 13; i++) {
-    sum += parseInt(cleanCNPJ[i]) * weight;
-    weight = weight === 2 ? 9 : weight - 1;
-  }
-  
-  let digit2 = sum % 11;
-  digit2 = digit2 < 2 ? 0 : 11 - digit2;
-  
-  return parseInt(cleanCNPJ[13]) === digit2;
+  // CNPJ é opcional e aceita qualquer formato
+  return true;
 };
 
 // Função para formatar CNPJ
@@ -693,7 +659,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               name="cnpj"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>CNPJ</FormLabel>
+                  <FormLabel>CNPJ (Opcional)</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="00.000.000/0000-00" 
