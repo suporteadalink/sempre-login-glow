@@ -26,7 +26,7 @@ export function CompanyFilters({
   onFilterChange,
   onClearFilters
 }: CompanyFiltersProps) {
-  const hasActiveFilters = Object.values(filters).some(value => value !== "");
+  const hasActiveFilters = Object.values(filters).some(value => value !== "" && value !== "all");
 
   return (
     <Card className="p-4 mb-6">
@@ -63,7 +63,7 @@ export function CompanyFilters({
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os tipos</SelectItem>
+              <SelectItem value="all">Todos os tipos</SelectItem>
               <SelectItem value="Lead">Lead</SelectItem>
               <SelectItem value="Cliente">Cliente</SelectItem>
               <SelectItem value="Inativa">Inativa</SelectItem>
@@ -75,7 +75,7 @@ export function CompanyFilters({
               <SelectValue placeholder="Setor" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os setores</SelectItem>
+              <SelectItem value="all">Todos os setores</SelectItem>
               <SelectItem value="Tecnologia">Tecnologia</SelectItem>
               <SelectItem value="Varejo">Varejo</SelectItem>
               <SelectItem value="Serviços">Serviços</SelectItem>
@@ -94,7 +94,7 @@ export function CompanyFilters({
               <SelectValue placeholder="Cidade" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as cidades</SelectItem>
+              <SelectItem value="all">Todas as cidades</SelectItem>
               <SelectItem value="São Paulo">São Paulo</SelectItem>
               <SelectItem value="Rio de Janeiro">Rio de Janeiro</SelectItem>
               <SelectItem value="Belo Horizonte">Belo Horizonte</SelectItem>
@@ -113,7 +113,7 @@ export function CompanyFilters({
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os estados</SelectItem>
+              <SelectItem value="all">Todos os estados</SelectItem>
               <SelectItem value="SP">São Paulo</SelectItem>
               <SelectItem value="RJ">Rio de Janeiro</SelectItem>
               <SelectItem value="MG">Minas Gerais</SelectItem>
@@ -136,7 +136,7 @@ export function CompanyFilters({
               <SelectValue placeholder="Porte" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os portes</SelectItem>
+              <SelectItem value="all">Todos os portes</SelectItem>
               <SelectItem value="Microempresa">Microempresa</SelectItem>
               <SelectItem value="Pequena">Pequena</SelectItem>
               <SelectItem value="Média">Média</SelectItem>

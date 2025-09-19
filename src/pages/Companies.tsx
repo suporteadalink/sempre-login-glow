@@ -45,11 +45,11 @@ export default function Companies() {
   const [dependencies, setDependencies] = useState<{opportunities: any[], projects: any[]}>({opportunities: [], projects: []});
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
-    type: "",
-    sector: "",
-    city: "",
-    state: "",
-    size: ""
+    type: "all",
+    sector: "all",
+    city: "all",
+    state: "all",
+    size: "all"
   });
   const { toast } = useToast();
 
@@ -97,11 +97,11 @@ export default function Companies() {
         company.phone?.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Filter matches
-      const typeMatch = filters.type === "" || company.type === filters.type;
-      const sectorMatch = filters.sector === "" || company.sector === filters.sector;
-      const cityMatch = filters.city === "" || company.city === filters.city;
-      const stateMatch = filters.state === "" || company.state === filters.state;
-      const sizeMatch = filters.size === "" || company.size === filters.size;
+      const typeMatch = filters.type === "" || filters.type === "all" || company.type === filters.type;
+      const sectorMatch = filters.sector === "" || filters.sector === "all" || company.sector === filters.sector;
+      const cityMatch = filters.city === "" || filters.city === "all" || company.city === filters.city;
+      const stateMatch = filters.state === "" || filters.state === "all" || company.state === filters.state;
+      const sizeMatch = filters.size === "" || filters.size === "all" || company.size === filters.size;
 
       return searchMatch && typeMatch && sectorMatch && cityMatch && stateMatch && sizeMatch;
     });
@@ -117,11 +117,11 @@ export default function Companies() {
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilters({
-      type: "",
-      sector: "",
-      city: "",
-      state: "",
-      size: ""
+      type: "all",
+      sector: "all",
+      city: "all",
+      state: "all",
+      size: "all"
     });
   };
 
