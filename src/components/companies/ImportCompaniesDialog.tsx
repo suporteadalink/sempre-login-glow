@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Download, Upload, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -163,6 +164,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [progress, setProgress] = useState(0);
   const [selectedSalesperson, setSelectedSalesperson] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
   
   const { data: salespeople } = useSalespeople();
   
@@ -496,6 +498,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     setRecords([]);
     setImportResult(null);
     setProgress(0);
+    setCurrentPage(1);
     onClose();
   };
 
@@ -510,6 +513,13 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
 
   const validCount = records.filter(r => r.status === 'valid').length;
   const errorCount = records.filter(r => r.status === 'error').length;
+  
+  // Pagination logic
+  const recordsPerPage = 50;
+  const totalPages = Math.ceil(records.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const currentRecords = records.slice(startIndex, endIndex);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -623,8 +633,8 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {records.slice(0, 50).map((record, index) => (
-                      <TableRow key={index}>
+                    {currentRecords.map((record, index) => (
+                      <TableRow key={startIndex + index}>
                         <TableCell>{getStatusIcon(record.status)}</TableCell>
                         <TableCell className="font-medium">{record.data.name}</TableCell>
                         <TableCell>{record.data.cnpj || '-'}</TableCell>
@@ -653,9 +663,54 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
               </div>
 
               {records.length > 50 && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Mostrando primeiros 50 registros de {records.length} total
-                </p>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Mostrando registros {startIndex + 1} a {Math.min(endIndex, records.length)} de {records.length} total
+                  </p>
+                  
+                  <Pagination>
+                    <PaginationContent>
+                      {currentPage > 1 && (
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(currentPage - 1);
+                            }}
+                          />
+                        </PaginationItem>
+                      )}
+                      
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            isActive={page === currentPage}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      
+                      {currentPage < totalPages && (
+                        <PaginationItem>
+                          <PaginationNext 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(currentPage + 1);
+                            }}
+                          />
+                        </PaginationItem>
+                      )}
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               )}
             </div>
           )}
