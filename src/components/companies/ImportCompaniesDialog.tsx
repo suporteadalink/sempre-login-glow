@@ -371,6 +371,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
         console.log('Validação concluída:', validatedData.length, 'registros processados');
 
         setRecords(validatedData);
+        setCurrentPage(1); // Reset para primeira página
         setStep('preview');
         
         toast.success(`Arquivo processado com sucesso! ${validatedData.length} registros encontrados.`);
@@ -535,6 +536,17 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const startIndex = (currentPage - 1) * recordsPerPage;
   const endIndex = startIndex + recordsPerPage;
   const currentRecords = records.slice(startIndex, endIndex);
+  
+  // Debug logging
+  console.log('Pagination Debug:', {
+    totalRecords: records.length,
+    recordsPerPage,
+    totalPages,
+    currentPage,
+    startIndex,
+    endIndex,
+    currentRecordsLength: currentRecords.length
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -697,20 +709,27 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                         </PaginationItem>
                       )}
                       
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            href="#"
-                            isActive={page === currentPage}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setCurrentPage(page);
-                            }}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
+                      {(() => {
+                        const maxVisiblePages = 5;
+                        const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                        const adjustedStartPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        
+                        return Array.from({ length: endPage - adjustedStartPage + 1 }, (_, i) => adjustedStartPage + i).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              isActive={page === currentPage}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(page);
+                              }}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ));
+                      })()}
                       
                       {currentPage < totalPages && (
                         <PaginationItem>
