@@ -47,6 +47,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  console.log('Import function started');
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -79,7 +82,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { companies, owner_id }: ImportRequest = await req.json()
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { companies, owner_id }: ImportRequest = requestBody;
+    console.log(`Processing ${companies?.length || 0} companies`);
 
     if (!companies || !Array.isArray(companies)) {
       return new Response(
@@ -170,10 +185,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Process companies to create
+    // Process companies to create in smaller batches to avoid timeout
     let insertedCompanies: any[] = [];
     if (companiesToCreate.length > 0) {
       try {
+        console.log(`Creating ${companiesToCreate.length} new companies`);
+        
         const companiesToInsert = companiesToCreate.map(company => ({
           name: company.name,
           cnpj: company.cnpj,
@@ -191,16 +208,24 @@ Deno.serve(async (req) => {
           source: 'import'
         }));
 
-        const { data: newCompanies, error: insertError } = await supabaseClient
-          .from('companies')
-          .insert(companiesToInsert)
-          .select('id, name');
+        // Process in batches of 50 to avoid timeout
+        const batchSize = 50;
+        for (let i = 0; i < companiesToInsert.length; i += batchSize) {
+          const batch = companiesToInsert.slice(i, i + batchSize);
+          console.log(`Processing batch ${Math.floor(i/batchSize) + 1} with ${batch.length} companies`);
 
-        if (insertError) {
-          throw insertError;
+          const { data: newCompanies, error: insertError } = await supabaseClient
+            .from('companies')
+            .insert(batch)
+            .select('id, name');
+
+          if (insertError) {
+            console.error('Batch insert error:', insertError);
+            throw insertError;
+          }
+
+          insertedCompanies = insertedCompanies.concat(newCompanies || []);
         }
-
-        insertedCompanies = newCompanies || [];
         console.log(`Created ${insertedCompanies.length} new companies`);
 
         // Add success details for new companies
@@ -416,6 +441,9 @@ Deno.serve(async (req) => {
       console.error('Failed to log activity:', logError)
     }
 
+    const duration = Date.now() - startTime;
+    console.log(`Import completed in ${duration}ms`);
+
     return new Response(
       JSON.stringify(result),
       { 
@@ -424,9 +452,15 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Function error:', error)
+    const duration = Date.now() - startTime;
+    console.error(`Function error after ${duration}ms:`, error);
+    
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message,
+        duration: duration
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

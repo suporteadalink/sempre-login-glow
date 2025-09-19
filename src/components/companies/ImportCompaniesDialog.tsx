@@ -454,7 +454,10 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
         body: importData
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Erro na função: ${error.message || 'Erro desconhecido'}`);
+      }
 
       setImportResult(data as ImportResult);
       setProgress(100);
@@ -471,6 +474,18 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     } catch (error) {
       console.error('Erro na importação:', error);
       
+      let errorMessage = 'Erro desconhecido na importação';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
+          errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'A importação está demorando muito. Tente com menos registros por vez.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       // Criar um resultado de erro para mostrar na tela de resultados
       setImportResult({
         total: records.length,
@@ -480,7 +495,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
         details: [{
           row: 1,
           status: 'error',
-          message: error instanceof Error ? error.message : 'Erro desconhecido na importação'
+          message: errorMessage
         }]
       });
       
