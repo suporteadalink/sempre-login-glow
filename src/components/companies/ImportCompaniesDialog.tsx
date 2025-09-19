@@ -468,8 +468,26 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
       }
     } catch (error) {
       console.error('Erro na importação:', error);
-      toast.error('Erro ao importar empresas');
-      setStep('preview');
+      
+      // Criar um resultado de erro para mostrar na tela de resultados
+      setImportResult({
+        total: records.length,
+        success: 0,
+        errors: 1,
+        warnings: 0,
+        details: [{
+          row: 1,
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Erro desconhecido na importação'
+        }]
+      });
+      
+      setProgress(100);
+      
+      // Mesmo em caso de erro, mostrar a tela de resultados
+      setTimeout(() => {
+        setStep('results');
+      }, 500);
     }
   };
 
