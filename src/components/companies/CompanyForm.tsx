@@ -291,6 +291,7 @@ interface Company {
   phone: string | null;
   email: string | null;
   website: string | null;
+  owner_id: string | null;
 }
 
 interface CompanyFormProps {
@@ -405,7 +406,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         email: company.email || "",
         website: company.website || "",
         type: company.type || "",
-        owner_id: "",
+        owner_id: company.owner_id || "",
         stage_id: "",
         opportunity_title: "",
         contacts: contactsArray

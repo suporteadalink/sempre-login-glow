@@ -29,6 +29,7 @@ interface Company {
   phone: string | null;
   email: string | null;
   website: string | null;
+  owner_id: string | null;
 }
 
 export default function Companies() {
@@ -66,7 +67,7 @@ export default function Companies() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
+        .select('*, owner_id')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
