@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSalespeople } from "@/hooks/useSalespeople";
 
 interface CompanyFiltersProps {
   searchTerm: string;
@@ -14,6 +15,7 @@ interface CompanyFiltersProps {
     city: string;
     state: string;
     size: string;
+    owner: string;
   };
   onFilterChange: (filterKey: string, value: string) => void;
   onClearFilters: () => void;
@@ -26,6 +28,7 @@ export function CompanyFilters({
   onFilterChange,
   onClearFilters
 }: CompanyFiltersProps) {
+  const { data: salespeople } = useSalespeople();
   const hasActiveFilters = Object.values(filters).some(value => value !== "" && value !== "all");
 
   return (
@@ -57,7 +60,7 @@ export function CompanyFilters({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <Select value={filters.type} onValueChange={(value) => onFilterChange("type", value)}>
             <SelectTrigger>
               <SelectValue placeholder="Tipo" />
@@ -141,6 +144,20 @@ export function CompanyFilters({
               <SelectItem value="Pequena">Pequena</SelectItem>
               <SelectItem value="Média">Média</SelectItem>
               <SelectItem value="Grande">Grande</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.owner} onValueChange={(value) => onFilterChange("owner", value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Vendedor/Gerente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os vendedores</SelectItem>
+              {salespeople?.map((salesperson) => (
+                <SelectItem key={salesperson.id} value={salesperson.id}>
+                  {salesperson.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

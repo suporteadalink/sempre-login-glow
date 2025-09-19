@@ -49,7 +49,8 @@ export default function Companies() {
     sector: "all",
     city: "all",
     state: "all",
-    size: "all"
+    size: "all",
+    owner: "all"
   });
   const { toast } = useToast();
 
@@ -102,8 +103,9 @@ export default function Companies() {
       const cityMatch = filters.city === "" || filters.city === "all" || company.city === filters.city;
       const stateMatch = filters.state === "" || filters.state === "all" || company.state === filters.state;
       const sizeMatch = filters.size === "" || filters.size === "all" || company.size === filters.size;
+      const ownerMatch = filters.owner === "" || filters.owner === "all" || company.owner_id === filters.owner;
 
-      return searchMatch && typeMatch && sectorMatch && cityMatch && stateMatch && sizeMatch;
+      return searchMatch && typeMatch && sectorMatch && cityMatch && stateMatch && sizeMatch && ownerMatch;
     });
   }, [companies, searchTerm, filters]);
 
@@ -121,7 +123,8 @@ export default function Companies() {
       sector: "all",
       city: "all",
       state: "all",
-      size: "all"
+      size: "all",
+      owner: "all"
     });
   };
 
