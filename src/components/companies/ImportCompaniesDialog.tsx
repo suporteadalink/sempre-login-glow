@@ -455,12 +455,16 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
       if (error) throw error;
 
       setImportResult(data as ImportResult);
-      setStep('results');
       setProgress(100);
+      
+      // Aguardar um pouco para mostrar o progresso completo antes de ir para os resultados
+      setTimeout(() => {
+        setStep('results');
+      }, 500);
       
       if (data.success > 0) {
         onSuccess();
-        toast.success(`${data.success} empresas importadas com sucesso!`);
+        // Removido o toast aqui pois a tela de resultados já mostra o status
       }
     } catch (error) {
       console.error('Erro na importação:', error);
