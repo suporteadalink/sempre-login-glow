@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CompanyForm } from "@/components/companies/CompanyForm";
 import ImportCompaniesDialog from "@/components/companies/ImportCompaniesDialog";
+import { CompanyFilters } from "@/components/companies/CompanyFilters";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -42,6 +43,14 @@ export default function Companies() {
   const [dependenciesDialogOpen, setDependenciesDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [dependencies, setDependencies] = useState<{opportunities: any[], projects: any[]}>({opportunities: [], projects: []});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: "",
+    sector: "",
+    city: "",
+    state: "",
+    size: ""
+  });
   const { toast } = useToast();
 
   // Get user role
@@ -76,6 +85,45 @@ export default function Companies() {
   });
 
   const isAdmin = userRole === 'admin';
+
+  // Filter companies based on search term and filters
+  const filteredCompanies = useMemo(() => {
+    return companies.filter((company) => {
+      // Search term filter
+      const searchMatch = searchTerm === "" || 
+        company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        company.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        company.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        company.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Filter matches
+      const typeMatch = filters.type === "" || company.type === filters.type;
+      const sectorMatch = filters.sector === "" || company.sector === filters.sector;
+      const cityMatch = filters.city === "" || company.city === filters.city;
+      const stateMatch = filters.state === "" || company.state === filters.state;
+      const sizeMatch = filters.size === "" || company.size === filters.size;
+
+      return searchMatch && typeMatch && sectorMatch && cityMatch && stateMatch && sizeMatch;
+    });
+  }, [companies, searchTerm, filters]);
+
+  const handleFilterChange = (filterKey: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: value
+    }));
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      type: "",
+      sector: "",
+      city: "",
+      state: "",
+      size: ""
+    });
+  };
 
   const handleDelete = async (company: Company) => {
     if (!isAdmin) {
@@ -210,6 +258,14 @@ export default function Companies() {
         </div>
       </div>
 
+      <CompanyFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+      />
+
       <Card>
         <Table>
           <TableHeader>
@@ -223,14 +279,14 @@ export default function Companies() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {companies.length === 0 ? (
+            {filteredCompanies.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  Nenhuma empresa encontrada
+                  {companies.length === 0 ? "Nenhuma empresa encontrada" : "Nenhuma empresa corresponde aos filtros aplicados"}
                 </TableCell>
               </TableRow>
             ) : (
-              companies.map((company) => (
+              filteredCompanies.map((company) => (
                 <TableRow key={company.id}>
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>{company.cnpj || '-'}</TableCell>
