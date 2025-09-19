@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
             result.details.push({
               row: rowNumber,
               status: 'success',
-              message: `Empresa atualizada (CNPJ já existia)`
+              message: `ATUALIZAÇÃO: Empresa "${company.name}" atualizada (CNPJ ${company.cnpj} já existia no sistema)`
             });
             continue;
           }
@@ -204,13 +204,15 @@ Deno.serve(async (req) => {
         console.log(`Created ${insertedCompanies.length} new companies`);
 
         // Add success details for new companies
-        insertedCompanies.forEach(() => {
+        for (let i = 0; i < insertedCompanies.length; i++) {
+          const newCompany = insertedCompanies[i];
+          const originalCompany = companiesToCreate[i];
           result.details.push({
-            row: result.details.length + 1,
+            row: companiesToCreate.findIndex(c => c.name === originalCompany.name) + 1,
             status: 'success',
-            message: 'Importado com sucesso'
+            message: `NOVO CADASTRO: Empresa "${newCompany.name}" cadastrada com sucesso${originalCompany.cnpj ? ` (CNPJ: ${originalCompany.cnpj})` : ''}`
           });
-        });
+        }
 
       } catch (error) {
         console.error('Batch insert error:', error);
@@ -376,12 +378,37 @@ Deno.serve(async (req) => {
     // Update success count
     result.success = insertedCompanies.length + companiesToUpdate.length;
 
-    // Log the import activity
+    // Log the import activity with detailed information
     try {
+      const createdCount = insertedCompanies.length;
+      const updatedCount = companiesToUpdate.length;
+      const totalProcessed = createdCount + updatedCount;
+      
+      let logDescription = `Importação em massa concluída: `;
+      
+      if (createdCount > 0) {
+        logDescription += `${createdCount} ${createdCount === 1 ? 'nova empresa cadastrada' : 'novas empresas cadastradas'}`;
+      }
+      
+      if (updatedCount > 0) {
+        if (createdCount > 0) logDescription += ', ';
+        logDescription += `${updatedCount} ${updatedCount === 1 ? 'empresa atualizada' : 'empresas atualizadas'} (CNPJ já existente)`;
+      }
+      
+      if (result.errors > 0) {
+        logDescription += `, ${result.errors} ${result.errors === 1 ? 'erro' : 'erros'}`;
+      }
+      
+      if (result.warnings > 0) {
+        logDescription += `, ${result.warnings} ${result.warnings === 1 ? 'aviso' : 'avisos'}`;
+      }
+      
+      logDescription += `. Total processado: ${totalProcessed}/${result.total} empresas.`;
+
         await supabaseClient
         .from('activity_log')
         .insert({
-          description: `Importação em massa: ${insertedCompanies.length} empresas criadas, ${companiesToUpdate.length} empresas atualizadas, ${result.errors} erros, ${result.warnings} avisos`,
+          description: logDescription,
           type: 'BULK_IMPORT',
           user_id: user.id
         })
