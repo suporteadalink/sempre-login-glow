@@ -165,6 +165,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const [progress, setProgress] = useState(0);
   const [selectedSalesperson, setSelectedSalesperson] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentResultPage, setCurrentResultPage] = useState(1);
   
   const { data: salespeople } = useSalespeople();
   
@@ -414,6 +415,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
 
     setStep('importing');
     setProgress(0);
+    setCurrentResultPage(1);
 
     try {
       const importData = {
@@ -515,6 +517,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
     setImportResult(null);
     setProgress(0);
     setCurrentPage(1);
+    setCurrentResultPage(1);
     onClose();
   };
 
@@ -542,6 +545,14 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   const endIndex = Math.min(startIndex + recordsPerPage, totalRecords);
   const currentRecords = records.slice(startIndex, endIndex);
   
+  // Pagination logic for results
+  const totalResultRecords = importResult?.details.length || 0;
+  const totalResultPages = Math.max(1, Math.ceil(totalResultRecords / recordsPerPage));
+  const validCurrentResultPage = Math.min(Math.max(1, currentResultPage), totalResultPages);
+  const resultStartIndex = (validCurrentResultPage - 1) * recordsPerPage;
+  const resultEndIndex = Math.min(resultStartIndex + recordsPerPage, totalResultRecords);
+  const currentResultRecords = importResult?.details.slice(resultStartIndex, resultEndIndex) || [];
+
   // Debug logging - removido para limpar console
   // console.log('Pagination Debug:', {
   //   totalRecords,
@@ -794,29 +805,89 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
               </div>
 
               {importResult.details.length > 0 && (
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Linha</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Mensagem</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {importResult.details.slice(0, 20).map((detail, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{detail.row}</TableCell>
-                          <TableCell>
-                            <Badge variant={detail.status === 'success' ? 'default' : 'destructive'}>
-                              {detail.status === 'success' ? 'Sucesso' : 'Erro'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{detail.message}</TableCell>
+                <div className="space-y-4">
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Linha</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Mensagem</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {currentResultRecords.map((detail, index) => (
+                          <TableRow key={resultStartIndex + index}>
+                            <TableCell>{detail.row}</TableCell>
+                            <TableCell>
+                              <Badge variant={detail.status === 'success' ? 'default' : 'destructive'}>
+                                {detail.status === 'success' ? 'Sucesso' : 'Erro'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{detail.message}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {totalResultRecords > recordsPerPage && (
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground text-center">
+                        Mostrando registros {resultStartIndex + 1} a {resultEndIndex} de {totalResultRecords} total
+                      </p>
+                      
+                      <Pagination>
+                        <PaginationContent>
+                          {validCurrentResultPage > 1 && (
+                            <PaginationItem>
+                              <PaginationPrevious 
+                                href="#" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentResultPage(validCurrentResultPage - 1);
+                                }}
+                              />
+                            </PaginationItem>
+                          )}
+                          
+                          {(() => {
+                            const maxVisiblePages = 5;
+                            const startPage = Math.max(1, validCurrentResultPage - Math.floor(maxVisiblePages / 2));
+                            const endPage = Math.min(totalResultPages, startPage + maxVisiblePages - 1);
+                            const adjustedStartPage = Math.max(1, endPage - maxVisiblePages + 1);
+                            
+                            return Array.from({ length: endPage - adjustedStartPage + 1 }, (_, i) => adjustedStartPage + i).map((page) => (
+                              <PaginationItem key={page}>
+                                <PaginationLink
+                                  href="#"
+                                  isActive={page === validCurrentResultPage}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setCurrentResultPage(page);
+                                  }}
+                                >
+                                  {page}
+                                </PaginationLink>
+                              </PaginationItem>
+                            ));
+                          })()}
+                          
+                          {validCurrentResultPage < totalResultPages && (
+                            <PaginationItem>
+                              <PaginationNext 
+                                href="#" 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentResultPage(validCurrentResultPage + 1);
+                                }}
+                              />
+                            </PaginationItem>
+                          )}
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
                 </div>
               )}
 
