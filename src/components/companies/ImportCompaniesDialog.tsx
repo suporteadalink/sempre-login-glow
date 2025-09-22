@@ -532,21 +532,26 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
   
   // Pagination logic
   const recordsPerPage = 50;
-  const totalPages = Math.ceil(records.length / recordsPerPage);
-  const startIndex = (currentPage - 1) * recordsPerPage;
-  const endIndex = startIndex + recordsPerPage;
+  const totalRecords = records.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / recordsPerPage));
+  
+  // Garantir que currentPage está dentro do range válido
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  
+  const startIndex = (validCurrentPage - 1) * recordsPerPage;
+  const endIndex = Math.min(startIndex + recordsPerPage, totalRecords);
   const currentRecords = records.slice(startIndex, endIndex);
   
-  // Debug logging
-  console.log('Pagination Debug:', {
-    totalRecords: records.length,
-    recordsPerPage,
-    totalPages,
-    currentPage,
-    startIndex,
-    endIndex,
-    currentRecordsLength: currentRecords.length
-  });
+  // Debug logging - removido para limpar console
+  // console.log('Pagination Debug:', {
+  //   totalRecords,
+  //   recordsPerPage,
+  //   totalPages,
+  //   currentPage: validCurrentPage,
+  //   startIndex,
+  //   endIndex,
+  //   currentRecordsLength: currentRecords.length
+  // });
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -689,21 +694,21 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                 </Table>
               </div>
 
-              {records.length > 50 && (
+              {totalRecords > recordsPerPage && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground text-center">
-                    Mostrando registros {startIndex + 1} a {Math.min(endIndex, records.length)} de {records.length} total
+                    Mostrando registros {startIndex + 1} a {endIndex} de {totalRecords} total
                   </p>
                   
                   <Pagination>
                     <PaginationContent>
-                      {currentPage > 1 && (
+                      {validCurrentPage > 1 && (
                         <PaginationItem>
                           <PaginationPrevious 
                             href="#" 
                             onClick={(e) => {
                               e.preventDefault();
-                              setCurrentPage(currentPage - 1);
+                              setCurrentPage(validCurrentPage - 1);
                             }}
                           />
                         </PaginationItem>
@@ -711,7 +716,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                       
                       {(() => {
                         const maxVisiblePages = 5;
-                        const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        const startPage = Math.max(1, validCurrentPage - Math.floor(maxVisiblePages / 2));
                         const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
                         const adjustedStartPage = Math.max(1, endPage - maxVisiblePages + 1);
                         
@@ -719,7 +724,7 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                           <PaginationItem key={page}>
                             <PaginationLink
                               href="#"
-                              isActive={page === currentPage}
+                              isActive={page === validCurrentPage}
                               onClick={(e) => {
                                 e.preventDefault();
                                 setCurrentPage(page);
@@ -731,13 +736,13 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
                         ));
                       })()}
                       
-                      {currentPage < totalPages && (
+                      {validCurrentPage < totalPages && (
                         <PaginationItem>
                           <PaginationNext 
                             href="#" 
                             onClick={(e) => {
                               e.preventDefault();
-                              setCurrentPage(currentPage + 1);
+                              setCurrentPage(validCurrentPage + 1);
                             }}
                           />
                         </PaginationItem>
