@@ -179,7 +179,7 @@ const optionalContactSchema = z.object({
 });
 
 const companySchema = z.object({
-  name: z.string().min(1, "Nome da empresa é obrigatório"),
+  name: z.string().optional(),
   cnpj: z.string().optional(),
   sector: z.string().optional(),
   size: z.string().optional(),
@@ -187,92 +187,18 @@ const companySchema = z.object({
   annual_revenue: z.number().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  phone: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    // Aceita qualquer número formatado que comece com (XX) e tenha pelo menos alguns dígitos
-    return /^\(\d{2}\) \d{4,5}-?\d{4}$/.test(val);
-  }, {
-    message: "Formato: (11) 93385-1277 ou similar"
-  }),
-  email: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidEmail(val);
-  }, {
-    message: "E-mail inválido"
-  }),
-  website: z.string().optional().refine((val) => {
-    if (!val || val.trim() === "") return true;
-    return isValidURL(val);
-  }, {
-    message: "URL inválida"
-  }),
-  type: z.string().min(1, "Tipo da empresa é obrigatório"),
-  // Campos específicos para Lead
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  website: z.string().optional(),
+  type: z.string().optional(),
   owner_id: z.string().optional(),
   stage_id: z.string().optional(),
   opportunity_title: z.string().optional(),
   contacts: z.array(z.object({
-    name: z.string(),
-    phone: z.string(), 
-    role: z.string()
-  })).length(3).refine((contacts) => {
-    console.log('🔍 DEBUG: Validando contatos:', contacts);
-    
-    // Primeiro contato deve estar completo se algum campo estiver preenchido
-    const firstContact = contacts[0];
-    const hasAnyFirstContactField = firstContact.name.trim() || firstContact.phone.trim() || firstContact.role.trim();
-    
-    if (hasAnyFirstContactField) {
-      // Se tem algum campo do primeiro contato, todos devem estar preenchidos
-      if (!firstContact.name.trim() || !firstContact.phone.trim() || !firstContact.role.trim()) {
-        console.log('🔍 DEBUG: Primeiro contato incompleto');
-        return false;
-      }
-      
-      // Validar formato do telefone do primeiro contato
-      if (!/^\(\d{2}\) \d{4,5}-?\d{4}$/.test(firstContact.phone)) {
-        console.log('🔍 DEBUG: Telefone do primeiro contato inválido');
-        return false;
-      }
-    }
-    
-    // Validar outros contatos (se preenchidos)
-    for (let i = 1; i < contacts.length; i++) {
-      const contact = contacts[i];
-      const hasAnyField = contact.name.trim() || contact.phone.trim() || contact.role.trim();
-      
-      if (hasAnyField) {
-        // Se tem algum campo, todos devem estar preenchidos
-        if (!contact.name.trim() || !contact.phone.trim() || !contact.role.trim()) {
-          console.log(`🔍 DEBUG: Contato ${i + 1} incompleto`);
-          return false;
-        }
-        
-        // Validar formato do telefone
-        if (!/^\(\d{2}\) \d{4,5}-?\d{4}$/.test(contact.phone)) {
-          console.log(`🔍 DEBUG: Telefone do contato ${i + 1} inválido`);
-          return false;
-        }
-      }
-    }
-    
-    console.log('🔍 DEBUG: Todos os contatos válidos');
-    return true;
-  }, {
-    message: "Se preencher algum campo do contato, todos os campos do contato são obrigatórios."
-  })
-}).refine((data) => {
-  console.log('🔍 DEBUG: Validando dados do formulário:', data);
-  // Se tipo é Lead, título da oportunidade é obrigatório
-  if (data.type === "Lead" && !data.opportunity_title?.trim()) {
-    console.log('🔍 DEBUG: Título da oportunidade obrigatório para Lead');
-    return false;
-  }
-  console.log('🔍 DEBUG: Validação do formulário OK');
-  return true;
-}, {
-  message: "Título da oportunidade é obrigatório para empresas do tipo Lead",
-  path: ["opportunity_title"]
+    name: z.string().optional(),
+    phone: z.string().optional(), 
+    role: z.string().optional()
+  })).length(3).optional()
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -425,43 +351,6 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
     console.log('🔍 DEBUG: Form submit iniciado', data);
     setLoading(true);
     
-    console.log('🔍 DEBUG: Iniciando validação manual');
-    
-    // Validar campos obrigatórios manualmente antes de tentar salvar
-    const missingFields = [];
-    
-    if (!data.name?.trim()) {
-      missingFields.push("Nome da empresa");
-    }
-    
-    if (!data.type?.trim()) {
-      missingFields.push("Tipo da empresa");
-    }
-    
-    // Se tipo é Lead, validar campos específicos
-    if (data.type === "Lead") {
-      if (!data.opportunity_title?.trim()) {
-        missingFields.push("Título da oportunidade");
-      }
-    }
-    
-    console.log('🔍 DEBUG: Campos obrigatórios validados, faltando:', missingFields);
-    
-    // Se há campos obrigatórios faltando, mostrar erro específico
-    if (missingFields.length > 0) {
-      const message = missingFields.length === 1 
-        ? `Campo obrigatório: ${missingFields[0]}`
-        : `Campos obrigatórios: ${missingFields.join(", ")}`;
-      
-      toast({
-        title: "Campos obrigatórios",
-        description: message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-    
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
@@ -478,7 +367,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       });
 
       const submitData = {
-        name: data.name,
+        name: data.name || "Nova Empresa",
         email: data.email || null,
         cnpj: data.cnpj || null,
         sector: data.sector || null,
@@ -487,7 +376,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         state: data.state || null,
         phone: data.phone || null,
         website: data.website || null,
-        type: data.type || null,
+        type: data.type || "Lead",
         number_of_employees: data.number_of_employees || null,
         annual_revenue: data.annual_revenue || null,
         owner_id: companyOwnerId,
@@ -509,19 +398,18 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           .eq('company_id', company.id);
 
         // Then, create new contacts
-        const validContacts = data.contacts.filter(contact => 
-          contact.name.trim() !== "" || contact.phone.trim() !== "" || contact.role.trim() !== ""
-        );
+        const validContacts = data.contacts?.filter(contact => 
+          contact?.name?.trim() || contact?.phone?.trim() || contact?.role?.trim()
+        ) || [];
 
         if (validContacts.length > 0) {
           for (const contact of validContacts) {
-            const validatedContact = contactItemSchema.parse(contact);
             const { error: contactError } = await supabase
               .from('contacts')
               .insert({
-                name: validatedContact.name,
-                phone: validatedContact.phone,
-                role: validatedContact.role,
+                name: contact.name || "",
+                phone: contact.phone || "",
+                role: contact.role || "",
                 company_id: company.id,
                 owner_id: companyOwnerId
               });
@@ -545,20 +433,19 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         if (companyError) throw companyError;
 
         // Create contacts
-        const validContacts = data.contacts.filter(contact => 
-          contact.name.trim() !== "" || contact.phone.trim() !== "" || contact.role.trim() !== ""
-        );
+        const validContacts = data.contacts?.filter(contact => 
+          contact?.name?.trim() || contact?.phone?.trim() || contact?.role?.trim()
+        ) || [];
 
         let createdContacts = [];
         if (validContacts.length > 0) {
           for (const contact of validContacts) {
-            const validatedContact = contactItemSchema.parse(contact);
             const { data: createdContact, error: contactError } = await supabase
               .from('contacts')
               .insert({
-                name: validatedContact.name,
-                phone: validatedContact.phone,
-                role: validatedContact.role,
+                name: contact.name || "",
+                phone: contact.phone || "",
+                role: contact.role || "",
                 company_id: newCompany.id,
                 owner_id: companyOwnerId
               })
@@ -570,7 +457,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           }
         }
 
-        // If type is Lead, create opportunity automatically
+        // If type is Lead and has opportunity data, create opportunity automatically
         if (data.type === "Lead" && data.opportunity_title && data.stage_id) {
           const { error: opportunityError } = await supabase
             .from('opportunities')
@@ -581,14 +468,14 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               contact_id: createdContacts.length > 0 ? createdContacts[0].id : null,
               stage_id: parseInt(data.stage_id),
               owner_id: companyOwnerId,
-              description: `Oportunidade criada automaticamente para empresa ${data.name}`
+              description: `Oportunidade criada automaticamente para empresa ${submitData.name}`
             });
 
           if (opportunityError) throw opportunityError;
 
           toast({
             title: "Sucesso",
-            description: `Empresa Lead criada com oportunidade "${data.opportunity_title}" e ${validContacts.length} contato(s).`,
+            description: `Empresa criada com oportunidade "${data.opportunity_title}" e ${validContacts.length} contato(s).`,
           });
         } else {
           toast({
