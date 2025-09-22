@@ -57,12 +57,76 @@ serve(async (req) => {
       estimated_hours: body.estimated_hours ? parseFloat(body.estimated_hours) : null,
       due_date: body.due_date || null,
       notes: body.notes || null,
-      responsible_id: body.responsible_id || user.id, // Default to current user
-      company_id: body.company_id ? parseInt(body.company_id) : null,
-      contact_id: body.contact_id ? parseInt(body.contact_id) : null,
-      opportunity_id: body.opportunity_id ? parseInt(body.opportunity_id) : null,
-      project_id: body.project_id ? parseInt(body.project_id) : null,
+      responsible_id: user.id, // Will be updated below if responsible_name is provided
+      company_id: null, // Will be updated below if company_name is provided
+      contact_id: null, // Will be updated below if contact_name is provided
+      opportunity_id: null, // Will be updated below if opportunity_title is provided
+      project_id: null, // Will be updated below if project_title is provided
     };
+
+    // Convert names to IDs
+    if (body.responsible_name) {
+      const { data: responsibleUser } = await supabaseClient
+        .from('users')
+        .select('id')
+        .eq('name', body.responsible_name)
+        .single();
+      
+      if (responsibleUser) {
+        taskData.responsible_id = responsibleUser.id;
+      }
+    }
+
+    if (body.company_name) {
+      const { data: company } = await supabaseClient
+        .from('companies')
+        .select('id')
+        .eq('name', body.company_name)
+        .single();
+      
+      if (company) {
+        taskData.company_id = company.id;
+      }
+    }
+
+    if (body.contact_name && taskData.company_id) {
+      const { data: contact } = await supabaseClient
+        .from('contacts')
+        .select('id')
+        .eq('name', body.contact_name)
+        .eq('company_id', taskData.company_id)
+        .single();
+      
+      if (contact) {
+        taskData.contact_id = contact.id;
+      }
+    }
+
+    if (body.opportunity_title && taskData.company_id) {
+      const { data: opportunity } = await supabaseClient
+        .from('opportunities')
+        .select('id')
+        .eq('title', body.opportunity_title)
+        .eq('company_id', taskData.company_id)
+        .single();
+      
+      if (opportunity) {
+        taskData.opportunity_id = opportunity.id;
+      }
+    }
+
+    if (body.project_title && taskData.company_id) {
+      const { data: project } = await supabaseClient
+        .from('projects')
+        .select('id')
+        .eq('title', body.project_title)
+        .eq('company_id', taskData.company_id)
+        .single();
+      
+      if (project) {
+        taskData.project_id = project.id;
+      }
+    }
 
     console.log('Processed task data:', taskData);
 
