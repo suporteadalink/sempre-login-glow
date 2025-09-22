@@ -66,37 +66,19 @@ serve(async (req) => {
 
     console.log('Processed task data:', taskData);
 
-    // Get user role to check if they can assign tasks to others
-    const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    // No admin restrictions - anyone can assign tasks to anyone
 
-    if (userDataError) {
-      console.error('Error fetching user data:', userDataError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch user data' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    console.log('User role:', userData.role);
-
-    // If user is not admin and trying to assign to someone else, override to self
-    if (userData.role !== 'admin' && taskData.responsible_id !== user.id) {
-      console.log('Non-admin user trying to assign to someone else, overriding to self');
-      taskData.responsible_id = user.id;
-    }
-
-    // Insert task into database
+    // Insert task into database and get responsible person's name
     const { data: task, error: insertError } = await supabaseClient
       .from('tasks')
       .insert(taskData)
-      .select()
+      .select(`
+        *,
+        responsible:responsible_id (
+          id,
+          name
+        )
+      `)
       .single();
 
     if (insertError) {
