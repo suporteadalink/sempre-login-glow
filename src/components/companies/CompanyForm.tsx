@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSalespeople } from "@/hooks/useSalespeople";
@@ -457,12 +457,15 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           }
         }
 
-        // If type is Lead and has opportunity data, create opportunity automatically
-        if (data.type === "Lead" && data.opportunity_title && data.stage_id) {
+        // If type is Lead, create opportunity automatically
+        if (data.type === "Lead" && data.stage_id) {
+          // Use company name as opportunity title if not provided
+          const opportunityTitle = data.opportunity_title?.trim() || submitData.name;
+          
           const { error: opportunityError } = await supabase
             .from('opportunities')
             .insert({
-              title: data.opportunity_title,
+              title: opportunityTitle,
               value: data.annual_revenue || 0,
               company_id: newCompany.id,
               contact_id: createdContacts.length > 0 ? createdContacts[0].id : null,
@@ -475,7 +478,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
 
           toast({
             title: "Sucesso",
-            description: `Empresa criada com oportunidade "${data.opportunity_title}" e ${validContacts.length} contato(s).`,
+            description: `Empresa criada com oportunidade "${opportunityTitle}" e ${validContacts.length} contato(s).`,
           });
         } else {
           toast({
@@ -832,10 +835,16 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                   name="opportunity_title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Título da Oportunidade *</FormLabel>
+                      <FormLabel>Título da Oportunidade</FormLabel>
                       <FormControl>
-                        <Input placeholder="Digite o título da oportunidade" {...field} />
+                        <Input 
+                          placeholder="Deixe vazio para usar o nome da empresa" 
+                          {...field} 
+                        />
                       </FormControl>
+                      <FormDescription>
+                        Se não especificar, será usado o nome da empresa como título da oportunidade.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

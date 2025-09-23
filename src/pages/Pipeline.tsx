@@ -39,10 +39,28 @@ interface Opportunity {
   } | null;
 }
 
+interface PipelineItem {
+  id: number | string;
+  title: string;
+  value: number;
+  stage_id: number;
+  company_id: number;
+  owner_id: string;
+  created_at?: string;
+  companies: {
+    name: string;
+  };
+  users: {
+    name: string;
+  } | null;
+  isCompany?: boolean;
+  project_id?: number | null;
+}
+
 interface SortableOpportunityCardProps {
-  opportunity: Opportunity;
-  onEdit: (opportunity: Opportunity) => void;
-  onDelete: (id: number) => void;
+  opportunity: PipelineItem;
+  onEdit: (opportunity: PipelineItem) => void;
+  onDelete: (id: number | string) => void;
   isAdmin: boolean;
   currentUserId?: string;
   aceitosStageId: number;
@@ -80,9 +98,9 @@ function SortableOpportunityCard({ opportunity, onEdit, onDelete, isAdmin, curre
 
 interface DroppableStageProps {
   stage: PipelineStage;
-  opportunities: Opportunity[];
-  onEdit: (opportunity: Opportunity) => void;
-  onDelete: (id: number) => void;
+  opportunities: PipelineItem[];
+  onEdit: (opportunity: PipelineItem) => void;
+  onDelete: (id: number | string) => void;
   isAdmin: boolean;
   currentUserId?: string;
   aceitosStageId: number;
@@ -140,9 +158,9 @@ function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, curre
 }
 
 interface OpportunityCardProps {
-  opportunity: Opportunity;
-  onEdit: (opportunity: Opportunity) => void;
-  onDelete: (id: number) => void;
+  opportunity: PipelineItem;
+  onEdit: (opportunity: PipelineItem) => void;
+  onDelete: (id: number | string) => void;
   isAdmin: boolean;
   currentUserId?: string;
   aceitosStageId: number;
@@ -205,10 +223,11 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
                 ⚠️ Projeto obrigatório para esta etapa
               </div>
             )}
-            <ProjectSelector
-              opportunityId={opportunity.id}
-              companyId={opportunity.company_id}
-              currentProjectId={opportunity.project_id}
+            {!opportunity.isCompany && (
+              <ProjectSelector
+                opportunityId={opportunity.id as number}
+                companyId={opportunity.company_id}
+                currentProjectId={opportunity.project_id}
               trigger={
                 <Button 
                   variant={needsProject ? "default" : "outline"} 
@@ -220,6 +239,7 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
                 </Button>
               }
             />
+            )}
           </div>
         )}
         
@@ -291,6 +311,30 @@ export default function Pipeline() {
     }
   });
 
+  // Fetch companies that are leads with stage_id to show in pipeline
+  const { data: leadCompanies = [], isLoading: leadCompaniesLoading } = useQuery({
+    queryKey: ["lead-companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select(`
+          id,
+          name,
+          stage_id,
+          annual_revenue,
+          owner_id,
+          created_at,
+          users:owner_id (name)
+        `)
+        .eq("type", "Lead")
+        .not("stage_id", "is", null)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Get user role
   const { data: userRole } = useQuery({
     queryKey: ["user-role", user?.id],
@@ -321,11 +365,34 @@ export default function Pipeline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-companies"] });
     },
     onError: () => {
       toast({
         title: "Erro",
         description: "Erro ao mover oportunidade",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const updateCompanyMutation = useMutation({
+    mutationFn: async ({ id, stage_id }: { id: number; stage_id: number }) => {
+      const { error } = await supabase
+        .from("companies")
+        .update({ stage_id })
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-companies"] });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao mover empresa",
         variant: "destructive",
       });
     }
@@ -374,16 +441,25 @@ export default function Pipeline() {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      const activeOpportunity = opportunities.find(opp => opp.id === active.id);
+      const activeItem = allItems.find(item => item.id === active.id);
       
-      if (activeOpportunity && over.id && typeof over.id === 'string' && over.id.startsWith('stage-')) {
+      if (activeItem && over.id && typeof over.id === 'string' && over.id.startsWith('stage-')) {
         const newStageId = parseInt(over.id.replace('stage-', ''));
         
-        if (activeOpportunity.stage_id !== newStageId) {
-          updateOpportunityMutation.mutate({
-            id: activeOpportunity.id,
-            stage_id: newStageId
-          });
+        if (activeItem.stage_id !== newStageId) {
+          if ('isCompany' in activeItem && activeItem.isCompany) {
+            // Update company stage
+            updateCompanyMutation.mutate({
+              id: activeItem.company_id,
+              stage_id: newStageId
+            });
+          } else {
+            // Update opportunity stage
+            updateOpportunityMutation.mutate({
+              id: activeItem.id as number,
+              stage_id: newStageId
+            });
+          }
         }
       }
     }
@@ -391,14 +467,16 @@ export default function Pipeline() {
     setActiveId(null);
   };
 
-  const handleEdit = (opportunity: Opportunity) => {
-    setEditingOpportunity(opportunity);
-    setIsDialogOpen(true);
+  const handleEdit = (item: PipelineItem) => {
+    if (!('isCompany' in item) || !item.isCompany) {
+      setEditingOpportunity(item as Opportunity);
+      setIsDialogOpen(true);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    const opportunity = opportunities.find(opp => opp.id === id);
-    const canDelete = isAdmin || (opportunity && opportunity.owner_id === user?.id);
+  const handleDelete = (id: number | string) => {
+    const item = allItems.find(item => item.id === id);
+    const canDelete = isAdmin || (item && item.owner_id === user?.id);
     
     if (!canDelete) {
       toast({
@@ -410,7 +488,10 @@ export default function Pipeline() {
     }
     
     if (confirm("Tem certeza que deseja excluir esta oportunidade e a empresa associada? Esta ação irá remover todos os dados relacionados (contatos, projetos, propostas, etc.) e não pode ser desfeita.")) {
-      deleteOpportunityMutation.mutate(id);
+      const companyId = typeof id === 'string' && id.startsWith('company-') 
+        ? parseInt(id.replace('company-', ''))
+        : (item?.company_id || (id as number));
+      deleteOpportunityMutation.mutate(companyId);
     }
   };
 
@@ -419,11 +500,30 @@ export default function Pipeline() {
     setEditingOpportunity(null);
   };
 
-  if (stagesLoading || opportunitiesLoading) {
+  if (stagesLoading || opportunitiesLoading || leadCompaniesLoading) {
     return <div className="p-6">Carregando...</div>;
   }
 
-  const activeOpportunity = activeId ? opportunities.find(opp => opp.id === activeId) : null;
+  // Combine opportunities and lead companies into a unified format
+  const allItems = [
+    ...opportunities,
+    ...leadCompanies
+      .filter(company => !opportunities.some(opp => opp.company_id === company.id))
+      .map(company => ({
+        id: `company-${company.id}`,
+        title: company.name,
+        value: company.annual_revenue || 0,
+        stage_id: company.stage_id,
+        owner_id: company.owner_id,
+        created_at: company.created_at,
+        companies: { name: company.name },
+        users: company.users,
+        isCompany: true,
+        company_id: company.id
+      }))
+  ];
+
+  const activeOpportunity = activeId ? allItems.find(item => item.id === activeId) : null;
 
   return (
     <div className="space-y-6">
@@ -469,22 +569,25 @@ export default function Pipeline() {
       >
         <div className="flex gap-6 overflow-x-auto pb-4">
           {stages.map((stage) => {
-            const stageOpportunities = opportunities.filter(
-              (opp) => opp.stage_id === stage.id
+            const stageItems = allItems.filter(
+              (item) => item.stage_id === stage.id && (
+                // Admin sees all items or user sees only their own items
+                isAdmin || item.owner_id === user?.id
+              )
             );
             
             return (
-                <DroppableStage
-                  key={stage.id}
-                  stage={stage}
-                  opportunities={stageOpportunities}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  isAdmin={isAdmin}
-                  currentUserId={user?.id}
-                  aceitosStageId={aceitosStageId}
-                />
-              );
+              <DroppableStage
+                key={stage.id}
+                stage={stage}
+                opportunities={stageItems}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                isAdmin={isAdmin}
+                currentUserId={user?.id}
+                aceitosStageId={aceitosStageId}
+              />
+            );
             })}
           </div>
 
