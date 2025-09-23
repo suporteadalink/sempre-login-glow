@@ -308,7 +308,8 @@ export default function Pipeline() {
       
       if (error) throw error;
       return data as Opportunity[];
-    }
+    },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
   });
 
   // Fetch companies that are leads with stage_id to show in pipeline
@@ -332,7 +333,8 @@ export default function Pipeline() {
       
       if (error) throw error;
       return data;
-    }
+    },
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
   });
 
   // Get user role

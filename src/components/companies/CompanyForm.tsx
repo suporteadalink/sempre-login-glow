@@ -380,7 +380,15 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
         number_of_employees: data.number_of_employees || null,
         annual_revenue: data.annual_revenue || null,
         owner_id: companyOwnerId,
+        stage_id: data.stage_id ? parseInt(data.stage_id) : null,
       };
+
+      console.log('🔍 DEBUG: Submit data with stage_id:', {
+        type: data.type,
+        stage_id: data.stage_id,
+        parsed_stage_id: data.stage_id ? parseInt(data.stage_id) : null,
+        submitData
+      });
 
       if (company) {
         const { error } = await supabase
@@ -491,6 +499,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["lead-companies"] }); // Add this new query key
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
 
       onSuccess();
