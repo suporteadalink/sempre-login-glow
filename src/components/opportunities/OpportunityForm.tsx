@@ -85,20 +85,6 @@ export function OpportunityForm({ opportunity, onSuccess }: OpportunityFormProps
         .eq("id", opportunity.id);
       
       if (error) throw error;
-
-      // If admin changed the owner, also update the company owner for consistency
-      // Note: The database trigger will also handle this, but this provides frontend validation
-      if (isAdmin && data.owner_id && data.owner_id !== opportunity.owner_id) {
-        const { error: companyError } = await supabase
-          .from("companies")
-          .update({ owner_id: data.owner_id })
-          .eq("id", opportunity.company_id);
-        
-        if (companyError) {
-          console.warn("Failed to update company owner:", companyError);
-          // Don't throw error as the trigger should handle this
-        }
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
