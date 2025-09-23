@@ -99,6 +99,7 @@ export type Database = {
           sector: string | null
           size: string | null
           source: string | null
+          stage_id: number | null
           state: string | null
           type: string
           website: string | null
@@ -119,6 +120,7 @@ export type Database = {
           sector?: string | null
           size?: string | null
           source?: string | null
+          stage_id?: number | null
           state?: string | null
           type: string
           website?: string | null
@@ -139,6 +141,7 @@ export type Database = {
           sector?: string | null
           size?: string | null
           source?: string | null
+          stage_id?: number | null
           state?: string | null
           type?: string
           website?: string | null
@@ -149,6 +152,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
             referencedColumns: ["id"]
           },
         ]
