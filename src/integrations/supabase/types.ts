@@ -667,6 +667,10 @@ export type Database = {
         Args: { opportunity_id_param: number }
         Returns: boolean
       }
+      fix_company_opportunity_owner_inconsistencies: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_conversion_goal_progress: {
         Args: Record<PropertyKey, never>
         Returns: Json
