@@ -77,11 +77,14 @@ export default function Companies() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
-        .select('*, owner_id')
+        .select(`
+          *, 
+          users:owner_id (name)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Company[];
+      return data as (Company & { users: { name: string } | null })[];
     }
   });
 
@@ -272,31 +275,39 @@ export default function Companies() {
       <Card>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>CNPJ</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[50px]">Ações</TableHead>
-            </TableRow>
+             <TableRow>
+               <TableHead>Nome</TableHead>
+               <TableHead>CNPJ</TableHead>
+               <TableHead>Cidade</TableHead>
+               <TableHead>Tipo</TableHead>
+               <TableHead>Vendedor Responsável</TableHead>
+               <TableHead>Status</TableHead>
+               <TableHead className="w-[50px]">Ações</TableHead>
+             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCompanies.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  {companies.length === 0 ? "Nenhuma empresa encontrada" : "Nenhuma empresa corresponde aos filtros aplicados"}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredCompanies.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell className="font-medium">{company.name}</TableCell>
-                  <TableCell>{company.cnpj || '-'}</TableCell>
-                  <TableCell>{company.city || '-'}</TableCell>
-                  <TableCell>{company.type || '-'}</TableCell>
-                  <TableCell>{getStatusBadge(company.type)}</TableCell>
-                  <TableCell>
+             {filteredCompanies.length === 0 ? (
+               <TableRow>
+                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                   {companies.length === 0 ? "Nenhuma empresa encontrada" : "Nenhuma empresa corresponde aos filtros aplicados"}
+                 </TableCell>
+               </TableRow>
+             ) : (
+               filteredCompanies.map((company) => (
+                 <TableRow key={company.id}>
+                   <TableCell className="font-medium">{company.name}</TableCell>
+                   <TableCell>{company.cnpj || '-'}</TableCell>
+                   <TableCell>{company.city || '-'}</TableCell>
+                   <TableCell>{company.type || '-'}</TableCell>
+                   <TableCell>
+                     {company.users?.name ? (
+                       <div className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
+                         {company.users.name}
+                       </div>
+                     ) : '-'}
+                   </TableCell>
+                   <TableCell>{getStatusBadge(company.type)}</TableCell>
+                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
