@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -71,6 +72,7 @@ const statusOptions = [
 
 export function ProjectForm({ isOpen, onClose, project, onSuccess }: ProjectFormProps) {
   const { toast } = useToast();
+  const { user, session } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -127,17 +129,26 @@ export function ProjectForm({ isOpen, onClose, project, onSuccess }: ProjectForm
 
   const fetchCompanies = async () => {
     try {
+      console.log("DEBUG: Fetching companies...", { 
+        user: user?.id, 
+        session: !!session,
+        authUid: (await supabase.auth.getUser()).data.user?.id 
+      });
+
       const { data, error } = await supabase
         .from("companies")
         .select("id, name")
         .order("name");
 
+      console.log("DEBUG: Companies result:", { data, error, count: data?.length });
+
       if (error) throw error;
       setCompanies(data || []);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("DEBUG: Error fetching companies:", error);
       toast({
         title: "Erro ao carregar empresas",
-        description: "Não foi possível carregar a lista de empresas.",
+        description: error.message || "Não foi possível carregar a lista de empresas.",
         variant: "destructive",
       });
     }
