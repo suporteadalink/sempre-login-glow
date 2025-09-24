@@ -172,10 +172,10 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
   const needsProject = isInAceitos && !opportunity.project_id;
   
   return (
-    <Card className={`rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border ${
+    <Card className={`h-[200px] flex flex-col rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border ${
       needsProject ? 'border-orange-400 border-2' : ''
     }`}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-start justify-between">
           <h4 className="font-bold text-sm leading-tight line-clamp-2 flex-1 mr-2">
             {opportunity.title}
@@ -209,41 +209,43 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 space-y-3">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Building2 className="h-4 w-4" />
-          <span className="text-sm truncate">{opportunity.companies?.name}</span>
+      <CardContent className="pt-0 flex-1 flex flex-col justify-between space-y-3">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Building2 className="h-4 w-4" />
+            <span className="text-sm truncate">{opportunity.companies?.name}</span>
+          </div>
+          
+          {/* Project section for "Aceitos" stage */}
+          {isInAceitos && (
+            <div className="space-y-2">
+              {needsProject && (
+                <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+                  ⚠️ Projeto obrigatório para esta etapa
+                </div>
+              )}
+              {!opportunity.isCompany && (
+                <ProjectSelector
+                  opportunityId={opportunity.id as number}
+                  companyId={opportunity.company_id}
+                  currentProjectId={opportunity.project_id}
+                trigger={
+                  <Button 
+                    variant={needsProject ? "default" : "outline"} 
+                    size="sm" 
+                    className="w-full gap-2 pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {opportunity.project_id ? "Alterar Projeto" : "Selecionar Projeto"}
+                  </Button>
+                }
+              />
+              )}
+            </div>
+          )}
         </div>
         
-        {/* Project section for "Aceitos" stage */}
-        {isInAceitos && (
-          <div className="space-y-2">
-            {needsProject && (
-              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
-                ⚠️ Projeto obrigatório para esta etapa
-              </div>
-            )}
-            {!opportunity.isCompany && (
-              <ProjectSelector
-                opportunityId={opportunity.id as number}
-                companyId={opportunity.company_id}
-                currentProjectId={opportunity.project_id}
-              trigger={
-                <Button 
-                  variant={needsProject ? "default" : "outline"} 
-                  size="sm" 
-                  className="w-full gap-2 pointer-events-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {opportunity.project_id ? "Alterar Projeto" : "Selecionar Projeto"}
-                </Button>
-              }
-            />
-            )}
-          </div>
-        )}
-        
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-auto">
           <div className="text-lg font-semibold text-green-600">
             {new Intl.NumberFormat('pt-BR', {
               style: 'currency',
