@@ -113,16 +113,16 @@ function DroppableStage({ stage, opportunities, onEdit, onDelete, isAdmin, curre
 
   return (
     <div className="flex-shrink-0 w-80">
-      <div className="mb-4">
-        <div className="flex items-center gap-3 mb-3">
+      <div className="mb-4 h-16 flex items-end">
+        <div className="flex items-center gap-3 mb-3 w-full">
           <div 
             className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: stage.color || "#6b7280" }}
           />
-          <h3 className="font-bold text-base">
+          <h3 className="font-bold text-base line-clamp-2 flex-1">
             {stage.name}
           </h3>
-          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">
+          <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full flex-shrink-0">
             {opportunities.length}
           </span>
         </div>
