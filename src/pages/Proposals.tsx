@@ -5,10 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Dialog } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, Edit, Trash2, Clock, Check, X, FileText } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2, Clock, Check, X, FileText, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalForm } from "@/components/proposals/ProposalForm";
+import { ProposalVersionHistory } from "@/components/proposals/ProposalVersionHistory";
 
 interface Proposal {
   id: number;
@@ -20,6 +21,8 @@ interface Proposal {
   owner_id: string;
   created_at: string;
   pdf_url: string | null;
+  current_version: number | null;
+  version_count: number | null;
   companies?: {
     name: string;
   };
@@ -36,6 +39,7 @@ export default function Proposals() {
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchProposals = async () => {
@@ -153,6 +157,16 @@ export default function Proposals() {
     setIsDetailsOpen(true);
   };
 
+  const handleViewHistory = (proposal: Proposal) => {
+    setSelectedProposal(proposal);
+    setIsHistoryOpen(true);
+  };
+
+  const handleBackFromHistory = () => {
+    setIsHistoryOpen(false);
+    setIsDetailsOpen(true);
+  };
+
   const getStatusBadgeVariant = (status: string | null) => {
     switch (status) {
       case 'Enviada':
@@ -223,7 +237,14 @@ export default function Proposals() {
                     onClick={() => handleRowClick(proposal)}
                   >
                     <TableCell className="font-medium">
-                      {proposal.title}
+                      <div className="flex items-center gap-2">
+                        {proposal.title}
+                        {(proposal.version_count ?? 1) > 1 && (
+                          <Badge variant="outline" className="text-xs">
+                            v{proposal.current_version} ({proposal.version_count} versões)
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {proposal.companies?.name || `Cliente #${proposal.company_id || 'N/A'}`}
@@ -262,6 +283,12 @@ export default function Proposals() {
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
+                          {(proposal.version_count ?? 1) > 1 && (
+                            <DropdownMenuItem onClick={() => handleViewHistory(proposal)}>
+                              <History className="mr-2 h-4 w-4" />
+                              Ver Histórico ({proposal.version_count} versões)
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem 
                             onClick={() => handleDelete(proposal.id)}
                             className="text-destructive"
@@ -312,12 +339,27 @@ export default function Proposals() {
         <div className="p-0">
           <div className="mx-auto max-w-6xl p-6">
             <div className="mb-6 space-y-4">
-              <h2 className="text-2xl font-bold">Detalhes da Proposta</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Detalhes da Proposta</h2>
+                {selectedProposal && (selectedProposal.version_count ?? 1) > 1 && (
+                  <Button variant="outline" onClick={() => handleViewHistory(selectedProposal)}>
+                    <History className="w-4 h-4 mr-2" />
+                    Ver Histórico ({selectedProposal.version_count} versões)
+                  </Button>
+                )}
+              </div>
               {selectedProposal && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Título</label>
-                    <p className="text-lg font-medium">{selectedProposal.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-medium">{selectedProposal.title}</p>
+                      {(selectedProposal.version_count ?? 1) > 1 && (
+                        <Badge variant="outline">
+                          v{selectedProposal.current_version}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Cliente</label>
@@ -335,6 +377,12 @@ export default function Proposals() {
                       </Badge>
                     </div>
                   </div>
+                  {(selectedProposal.version_count ?? 1) > 1 && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Versões</label>
+                      <p>{selectedProposal.version_count} versões criadas</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -361,6 +409,20 @@ export default function Proposals() {
               <div className="flex items-center justify-center h-32 border rounded-lg border-dashed">
                 <p className="text-muted-foreground">Nenhum PDF anexado a esta proposta</p>
               </div>
+            )}
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Dialog para histórico de versões */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <div className="p-0">
+          <div className="mx-auto max-w-7xl p-6">
+            {selectedProposal && (
+              <ProposalVersionHistory 
+                proposalId={selectedProposal.id}
+                onBack={handleBackFromHistory}
+              />
             )}
           </div>
         </div>
