@@ -1,6 +1,6 @@
 project_id = "xrfaptpqlllibcopnzdm"
 
-[functions.manage-proposals]
+[functions.add-proposal]
 verify_jwt = true
 
 [api]
