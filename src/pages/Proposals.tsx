@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, MoreHorizontal, Edit, Trash2, Clock, Check, X, FileText, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,8 @@ export default function Proposals() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { toast } = useToast();
+
+  console.log("DEBUG: Proposals component - isHistoryOpen:", isHistoryOpen, "selectedProposal:", selectedProposal?.id);
 
   const fetchProposals = async () => {
     try {
@@ -158,6 +160,7 @@ export default function Proposals() {
   };
 
   const handleViewHistory = (proposal: Proposal) => {
+    console.log("DEBUG: Opening history for proposal", proposal.id);
     setSelectedProposal(proposal);
     setIsHistoryOpen(true);
   };
@@ -416,16 +419,18 @@ export default function Proposals() {
 
       {/* Dialog para histórico de versões */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-        <div className="p-0">
-          <div className="mx-auto max-w-7xl p-6">
-            {selectedProposal && (
-              <ProposalVersionHistory 
-                proposalId={selectedProposal.id}
-                onBack={handleBackFromHistory}
-              />
-            )}
-          </div>
-        </div>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de Versões da Proposta</DialogTitle>
+          </DialogHeader>
+          
+          {selectedProposal && (
+            <ProposalVersionHistory 
+              proposalId={selectedProposal.id}
+              onBack={handleBackFromHistory}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </div>
   );

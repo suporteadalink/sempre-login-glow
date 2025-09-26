@@ -29,6 +29,8 @@ interface ProposalVersionHistoryProps {
 }
 
 export function ProposalVersionHistory({ proposalId, onBack }: ProposalVersionHistoryProps) {
+  console.log("DEBUG: ProposalVersionHistory loading for proposalId:", proposalId);
+  
   const [versions, setVersions] = useState<ProposalVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVersion, setSelectedVersion] = useState<ProposalVersion | null>(null);
@@ -39,6 +41,7 @@ export function ProposalVersionHistory({ proposalId, onBack }: ProposalVersionHi
   }, [proposalId]);
 
   const fetchVersions = async () => {
+    console.log("DEBUG: Fetching versions for proposal:", proposalId);
     try {
       setLoading(true);
       
@@ -106,10 +109,15 @@ export function ProposalVersionHistory({ proposalId, onBack }: ProposalVersionHi
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p>Carregando histórico de versões...</p>
+        </div>
       </div>
     );
   }
+
+  console.log("DEBUG: Rendering ProposalVersionHistory with", versions.length, "versions");
 
   return (
     <div className="space-y-6">
