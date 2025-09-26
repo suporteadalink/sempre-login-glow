@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from '@supabase/supabase-js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,509 +6,166 @@ const corsHeaders = {
 };
 
 interface ProposalData {
-  // Campos obrigatórios (como string)
   status: string;
-  owner_name: string; // responsável
+  owner_name: string;
   project_name: string;
   company_name: string;
-  
-  // Campos opcionais
   title?: string;
   value?: number;
   pdf_url?: string;
 }
 
-interface CreateProposalRequest {
-  action: 'create';
-  data: ProposalData;
-}
-
-interface UpdateProposalRequest {
-  action: 'update';
-  id: number;
-  data: Partial<ProposalData>;
-}
-
-interface GetProposalRequest {
-  action: 'get';
+interface RequestBody {
+  action: 'create' | 'update' | 'get' | 'delete';
+  data?: ProposalData;
   id?: number;
-  filters?: {
-    company_name?: string;
-    project_name?: string;
-    owner_name?: string;
-    status?: string;
-  };
 }
-
-interface DeleteProposalRequest {
-  action: 'delete';
-  id: number;
-}
-
-type ProposalRequest = CreateProposalRequest | UpdateProposalRequest | GetProposalRequest | DeleteProposalRequest;
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    const body: RequestBody = await req.json();
+    
+    if (body.action === 'create') {
+      return await createProposal(body.data!);
+    }
+    
+    return new Response(
+      JSON.stringify({ error: 'Action not implemented yet' }),
+      { status: 501, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      supabaseClient.auth.setSession({ access_token: authHeader.replace('Bearer ', ''), refresh_token: '' });
-    }
-
-    const requestBody: ProposalRequest = await req.json();
-    console.log('Received request:', requestBody);
-
-    switch (requestBody.action) {
-      case 'create':
-        return await createProposal(supabaseClient, requestBody);
-      
-      case 'update':
-        return await updateProposal(supabaseClient, requestBody);
-      
-      case 'get':
-        return await getProposals(supabaseClient, requestBody);
-      
-      case 'delete':
-        return await deleteProposal(supabaseClient, requestBody);
-      
-      default:
-        return new Response(
-          JSON.stringify({ error: 'Invalid action. Use: create, update, get, or delete' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-    }
-
   } catch (error) {
-    console.error('Error in manage-proposals function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Server error', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-async function createProposal(supabase: any, request: CreateProposalRequest) {
-  const { data } = request;
-  
-  // Validar campos obrigatórios
+async function createProposal(data: ProposalData) {
+  // Validate required fields
   if (!data.status || !data.owner_name || !data.project_name || !data.company_name) {
     return new Response(
-      JSON.stringify({ 
-        error: 'Missing required fields: status, owner_name, project_name, company_name' 
-      }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Missing required fields' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // Converter nomes para IDs
-  const conversionResult = await convertNamesToIds(supabase, data);
-  if (!conversionResult.success) {
-    return new Response(
-      JSON.stringify({ 
-        error: 'Conversion error', 
-        details: conversionResult.error 
-      }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  const { owner_id, project_id, company_id } = conversionResult;
-
-  // Gerar título automático se não fornecido
-  if (!data.title) {
-    // Buscar dados da empresa e projeto para gerar título
-    const { data: company } = await supabase
-      .from('companies')
-      .select('name')
-      .eq('id', company_id)
-      .single();
-    
-    const { data: project } = await supabase
-      .from('projects')
-      .select('title, project_code')
-      .eq('id', project_id)
-      .single();
-
-    const companyName = company?.name || data.company_name;
-    const projectTitle = project?.title || data.project_name;
-    const projectCode = project?.project_code ? `[${project.project_code}] ` : '';
-    
-    data.title = `Proposta ${companyName} - ${projectCode}${projectTitle}`;
-  }
-
-  // Criar proposta
-  const { data: proposal, error } = await supabase
-    .from('proposals')
-    .insert([{
-      title: data.title,
-      status: data.status,
-      owner_id: owner_id,
-      project_id: project_id,
-      company_id: company_id,
-      value: data.value || null,
-      pdf_url: data.pdf_url || null
-    }])
-    .select(`
-      *,
-      companies:company_id(id, name),
-      projects:project_id(id, title, project_code)
-    `)
-    .single();
-
-  if (error) {
-    console.error('Error creating proposal:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to create proposal', details: error.message }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  // Log da atividade
-  await supabase
-    .from('activity_log')
-    .insert({
-      description: `Proposta "${proposal.title}" criada via API.`,
-      type: 'PROPOSAL_CREATED',
-      user_id: owner_id,
-      related_company_id: company_id
-    });
-
-  return new Response(
-    JSON.stringify({ 
-      success: true, 
-      message: 'Proposal created successfully',
-      data: proposal 
-    }),
-    { 
-      status: 201, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    }
-  );
-}
-
-async function updateProposal(supabase: any, request: UpdateProposalRequest) {
-  const { id, data } = request;
-
-  // Verificar se a proposta existe
-  const { data: existingProposal, error: fetchError } = await supabase
-    .from('proposals')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (fetchError || !existingProposal) {
-    return new Response(
-      JSON.stringify({ error: 'Proposal not found' }),
-      { 
-        status: 404, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  // Converter nomes para IDs se fornecidos
-  let updateData = { ...data };
-  if (data.owner_name || data.project_name || data.company_name) {
-    const conversionResult = await convertNamesToIds(supabase, data);
+  try {
+    // Convert names to IDs
+    const conversionResult = await convertNamesToIds(data);
     if (!conversionResult.success) {
       return new Response(
-        JSON.stringify({ 
-          error: 'Conversion error', 
-          details: conversionResult.error 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: conversionResult.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Substituir os nomes pelos IDs
-    updateData = {
-      ...data,
+    // Create proposal
+    const proposalData = {
+      title: data.title || `Proposta ${data.company_name} - ${data.project_name}`,
+      status: data.status,
       owner_id: conversionResult.owner_id,
       project_id: conversionResult.project_id,
-      company_id: conversionResult.company_id
+      company_id: conversionResult.company_id,
+      value: data.value || null,
+      pdf_url: data.pdf_url || null
     };
-    
-    // Remover os campos de nome do update
-    delete updateData.owner_name;
-    delete updateData.project_name;
-    delete updateData.company_name;
-  }
 
-  // Atualizar proposta
-  const { data: updatedProposal, error } = await supabase
-    .from('proposals')
-    .update(updateData)
-    .eq('id', id)
-    .select(`
-      *,
-      companies:company_id(id, name),
-      projects:project_id(id, title, project_code)
-    `)
-    .single();
-
-  if (error) {
-    console.error('Error updating proposal:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to update proposal', details: error.message }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  // Log da atividade
-  await supabase
-    .from('activity_log')
-    .insert({
-      description: `Proposta "${updatedProposal.title}" atualizada via API.`,
-      type: 'PROPOSAL_UPDATED',
-      user_id: updatedProposal.owner_id,
-      related_company_id: updatedProposal.company_id
+    const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/proposals`, {
+      method: 'POST',
+      headers: {
+        'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(proposalData),
     });
 
-  return new Response(
-    JSON.stringify({ 
-      success: true, 
-      message: 'Proposal updated successfully',
-      data: updatedProposal 
-    }),
-    { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    }
-  );
-}
-
-async function getProposals(supabase: any, request: GetProposalRequest) {
-  let query = supabase
-    .from('proposals')
-    .select(`
-      *,
-      companies:company_id(id, name),
-      projects:project_id(id, title, project_code)
-    `);
-
-  // Se um ID específico foi fornecido
-  if (request.id) {
-    query = query.eq('id', request.id);
-    
-    const { data, error } = await query.maybeSingle();
-    
-    if (error) {
+    if (!response.ok) {
+      const error = await response.json();
       return new Response(
-        JSON.stringify({ error: 'Proposal not found', details: error.message }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Failed to create proposal', details: error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const proposal = await response.json();
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data 
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: true, data: proposal }),
+      { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Failed to create proposal', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-
-  // Aplicar filtros se fornecidos (usando nomes)
-  if (request.filters) {
-    const { company_name, project_name, owner_name, status } = request.filters;
-    
-    // Converter nomes para IDs para aplicar filtros
-    if (company_name || project_name || owner_name) {
-      const conversionResult = await convertNamesToIds(supabase, {
-        company_name,
-        project_name,
-        owner_name
-      });
-      
-      if (conversionResult.success) {
-        if (conversionResult.company_id) query = query.eq('company_id', conversionResult.company_id);
-        if (conversionResult.project_id) query = query.eq('project_id', conversionResult.project_id);
-        if (conversionResult.owner_id) query = query.eq('owner_id', conversionResult.owner_id);
-      }
-    }
-    
-    if (status) query = query.eq('status', status);
-  }
-
-  const { data, error } = await query.order('created_at', { ascending: false });
-
-  if (error) {
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch proposals', details: error.message }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({ 
-      success: true, 
-      data,
-      count: data.length 
-    }),
-    { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    }
-  );
 }
 
-async function deleteProposal(supabase: any, request: DeleteProposalRequest) {
-  const { id } = request;
-
-  // Verificar se a proposta existe e buscar dados antes de deletar
-  const { data: existingProposal, error: fetchError } = await supabase
-    .from('proposals')
-    .select('title, owner_id, company_id')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (fetchError || !existingProposal) {
-    return new Response(
-      JSON.stringify({ error: 'Proposal not found' }),
-      { 
-        status: 404, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  // Deletar proposta
-  const { error } = await supabase
-    .from('proposals')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error deleting proposal:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to delete proposal', details: error.message }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  // Log da atividade
-  await supabase
-    .from('activity_log')
-    .insert({
-      description: `Proposta "${existingProposal.title}" excluída via API.`,
-      type: 'PROPOSAL_DELETED',
-      user_id: existingProposal.owner_id,
-      related_company_id: existingProposal.company_id
-    });
-
-  return new Response(
-    JSON.stringify({ 
-      success: true, 
-      message: 'Proposal deleted successfully' 
-    }),
-    { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    }
-  );
-}
-
-// Função auxiliar para converter nomes em IDs
-async function convertNamesToIds(supabase: any, data: any) {
+async function convertNamesToIds(data: ProposalData) {
   try {
-    let owner_id = null;
-    let project_id = null;
-    let company_id = null;
+    const headers = {
+      'apikey': Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      'Content-Type': 'application/json'
+    };
 
-    // Converter nome do responsável para ID
-    if (data.owner_name) {
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('name', data.owner_name)
-        .maybeSingle();
-
-      if (userError || !user) {
-        return { success: false, error: `Responsável "${data.owner_name}" não encontrado` };
-      }
-      owner_id = user.id;
+    // Get user ID
+    const userResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/rest/v1/users?name=eq.${encodeURIComponent(data.owner_name)}&select=id&limit=1`,
+      { headers }
+    );
+    
+    if (!userResponse.ok) {
+      return { success: false, error: `Erro ao buscar usuário ${data.owner_name}` };
+    }
+    
+    const users = await userResponse.json();
+    if (!users || users.length === 0) {
+      return { success: false, error: `Usuário ${data.owner_name} não encontrado` };
     }
 
-    // Converter nome do projeto para ID
-    if (data.project_name) {
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('title', data.project_name)
-        .maybeSingle();
-
-      if (projectError || !project) {
-        return { success: false, error: `Projeto "${data.project_name}" não encontrado` };
-      }
-      project_id = project.id;
+    // Get project ID
+    const projectResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/rest/v1/projects?title=eq.${encodeURIComponent(data.project_name)}&select=id&limit=1`,
+      { headers }
+    );
+    
+    if (!projectResponse.ok) {
+      return { success: false, error: `Erro ao buscar projeto ${data.project_name}` };
+    }
+    
+    const projects = await projectResponse.json();
+    if (!projects || projects.length === 0) {
+      return { success: false, error: `Projeto ${data.project_name} não encontrado` };
     }
 
-    // Converter nome da empresa para ID
-    if (data.company_name) {
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('name', data.company_name)
-        .maybeSingle();
-
-      if (companyError || !company) {
-        return { success: false, error: `Empresa "${data.company_name}" não encontrada` };
-      }
-      company_id = company.id;
+    // Get company ID
+    const companyResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/rest/v1/companies?name=eq.${encodeURIComponent(data.company_name)}&select=id&limit=1`,
+      { headers }
+    );
+    
+    if (!companyResponse.ok) {
+      return { success: false, error: `Erro ao buscar empresa ${data.company_name}` };
+    }
+    
+    const companies = await companyResponse.json();
+    if (!companies || companies.length === 0) {
+      return { success: false, error: `Empresa ${data.company_name} não encontrada` };
     }
 
     return {
       success: true,
-      owner_id,
-      project_id,
-      company_id
+      owner_id: users[0].id,
+      project_id: projects[0].id,
+      company_id: companies[0].id
     };
 
   } catch (error) {
