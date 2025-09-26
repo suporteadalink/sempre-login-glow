@@ -1,22 +1,34 @@
-import * as React from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-console.log("DEBUG: main.tsx starting");
-console.log("DEBUG: React version:", React.version);
+console.log("=== DEBUGGING REACT LOAD ===");
+console.log("React object:", React);
+console.log("React version:", React.version);
+console.log("createRoot function:", createRoot);
 
+// Emergency simple rendering
 const container = document.getElementById("root");
-if (!container) {
-  throw new Error("Root element not found");
-}
+console.log("Container found:", !!container);
 
-try {
-  const root = createRoot(container);
-  root.render(<App />);
-  console.log("DEBUG: App rendered successfully");
-} catch (error) {
-  console.error("DEBUG: Error rendering app:", error);
-  // Fallback rendering
-  container.innerHTML = `<div>Error rendering app: ${error}</div>`;
+if (container) {
+  try {
+    console.log("Creating root...");
+    const root = createRoot(container);
+    console.log("Root created:", root);
+    
+    console.log("Rendering App...");
+    root.render(React.createElement(App));
+    console.log("App rendered successfully");
+  } catch (error) {
+    console.error("Error during render:", error);
+    container.innerHTML = `<div style="color: red; padding: 20px;">
+      <h2>Render Error</h2>
+      <p>Error: ${error}</p>
+      <p>Check console for details</p>
+    </div>`;
+  }
+} else {
+  console.error("Root container not found!");
 }
