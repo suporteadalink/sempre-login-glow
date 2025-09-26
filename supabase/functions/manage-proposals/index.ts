@@ -1,6 +1,5 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
+import { createClient } from '@supabase/supabase-js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -225,7 +224,7 @@ async function updateProposal(supabase: any, request: UpdateProposalRequest) {
     .from('proposals')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (fetchError || !existingProposal) {
     return new Response(
@@ -327,7 +326,7 @@ async function getProposals(supabase: any, request: GetProposalRequest) {
   if (request.id) {
     query = query.eq('id', request.id);
     
-    const { data, error } = await query.single();
+    const { data, error } = await query.maybeSingle();
     
     if (error) {
       return new Response(
@@ -406,7 +405,7 @@ async function deleteProposal(supabase: any, request: DeleteProposalRequest) {
     .from('proposals')
     .select('title, owner_id, company_id')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (fetchError || !existingProposal) {
     return new Response(
@@ -470,7 +469,7 @@ async function convertNamesToIds(supabase: any, data: any) {
         .from('users')
         .select('id')
         .eq('name', data.owner_name)
-        .single();
+        .maybeSingle();
 
       if (userError || !user) {
         return { success: false, error: `Responsável "${data.owner_name}" não encontrado` };
@@ -484,7 +483,7 @@ async function convertNamesToIds(supabase: any, data: any) {
         .from('projects')
         .select('id')
         .eq('title', data.project_name)
-        .single();
+        .maybeSingle();
 
       if (projectError || !project) {
         return { success: false, error: `Projeto "${data.project_name}" não encontrado` };
@@ -498,7 +497,7 @@ async function convertNamesToIds(supabase: any, data: any) {
         .from('companies')
         .select('id')
         .eq('name', data.company_name)
-        .single();
+        .maybeSingle();
 
       if (companyError || !company) {
         return { success: false, error: `Empresa "${data.company_name}" não encontrada` };
