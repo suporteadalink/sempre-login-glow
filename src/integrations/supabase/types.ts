@@ -488,10 +488,61 @@ export type Database = {
           },
         ]
       }
+      proposal_versions: {
+        Row: {
+          change_description: string | null
+          changed_by: string | null
+          created_at: string | null
+          id: number
+          is_current: boolean | null
+          pdf_url: string | null
+          proposal_id: number
+          status: string | null
+          title: string
+          value: number | null
+          version_number: number
+        }
+        Insert: {
+          change_description?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: number
+          is_current?: boolean | null
+          pdf_url?: string | null
+          proposal_id: number
+          status?: string | null
+          title: string
+          value?: number | null
+          version_number: number
+        }
+        Update: {
+          change_description?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          id?: number
+          is_current?: boolean | null
+          pdf_url?: string | null
+          proposal_id?: number
+          status?: string | null
+          title?: string
+          value?: number | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_versions_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           company_id: number | null
           created_at: string | null
+          current_version: number | null
           id: number
           owner_id: string
           pdf_url: string | null
@@ -499,10 +550,12 @@ export type Database = {
           status: string | null
           title: string
           value: number | null
+          version_count: number | null
         }
         Insert: {
           company_id?: number | null
           created_at?: string | null
+          current_version?: number | null
           id?: never
           owner_id: string
           pdf_url?: string | null
@@ -510,10 +563,12 @@ export type Database = {
           status?: string | null
           title: string
           value?: number | null
+          version_count?: number | null
         }
         Update: {
           company_id?: number | null
           created_at?: string | null
+          current_version?: number | null
           id?: never
           owner_id?: string
           pdf_url?: string | null
@@ -521,6 +576,7 @@ export type Database = {
           status?: string | null
           title?: string
           value?: number | null
+          version_count?: number | null
         }
         Relationships: [
           {
@@ -712,6 +768,10 @@ export type Database = {
       get_recent_activities: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      initialize_proposal_versions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
