@@ -1,5 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,11 +8,11 @@ const corsHeaders = {
 };
 
 interface ProposalData {
-  // Campos obrigatórios
+  // Campos obrigatórios (como string)
   status: string;
-  owner_id: string; // responsável
-  project_id: number;
-  company_id: number;
+  owner_name: string; // responsável
+  project_name: string;
+  company_name: string;
   
   // Campos opcionais
   title?: string;
@@ -34,9 +35,9 @@ interface GetProposalRequest {
   action: 'get';
   id?: number;
   filters?: {
-    company_id?: number;
-    project_id?: number;
-    owner_id?: string;
+    company_name?: string;
+    project_name?: string;
+    owner_name?: string;
     status?: string;
   };
 }
@@ -112,10 +113,10 @@ async function createProposal(supabase: any, request: CreateProposalRequest) {
   const { data } = request;
   
   // Validar campos obrigatórios
-  if (!data.status || !data.owner_id || !data.project_id || !data.company_id) {
+  if (!data.status || !data.owner_name || !data.project_name || !data.company_name) {
     return new Response(
       JSON.stringify({ 
-        error: 'Missing required fields: status, owner_id, project_id, company_id' 
+        error: 'Missing required fields: status, owner_name, project_name, company_name' 
       }),
       { 
         status: 400, 
@@ -124,23 +125,40 @@ async function createProposal(supabase: any, request: CreateProposalRequest) {
     );
   }
 
+  // Converter nomes para IDs
+  const conversionResult = await convertNamesToIds(supabase, data);
+  if (!conversionResult.success) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Conversion error', 
+        details: conversionResult.error 
+      }),
+      { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  const { owner_id, project_id, company_id } = conversionResult;
+
   // Gerar título automático se não fornecido
   if (!data.title) {
-    // Buscar nomes da empresa e projeto para gerar título
+    // Buscar dados da empresa e projeto para gerar título
     const { data: company } = await supabase
       .from('companies')
       .select('name')
-      .eq('id', data.company_id)
+      .eq('id', company_id)
       .single();
     
     const { data: project } = await supabase
       .from('projects')
       .select('title, project_code')
-      .eq('id', data.project_id)
+      .eq('id', project_id)
       .single();
 
-    const companyName = company?.name || `Empresa #${data.company_id}`;
-    const projectTitle = project?.title || `Projeto #${data.project_id}`;
+    const companyName = company?.name || data.company_name;
+    const projectTitle = project?.title || data.project_name;
     const projectCode = project?.project_code ? `[${project.project_code}] ` : '';
     
     data.title = `Proposta ${companyName} - ${projectCode}${projectTitle}`;
@@ -152,9 +170,9 @@ async function createProposal(supabase: any, request: CreateProposalRequest) {
     .insert([{
       title: data.title,
       status: data.status,
-      owner_id: data.owner_id,
-      project_id: data.project_id,
-      company_id: data.company_id,
+      owner_id: owner_id,
+      project_id: project_id,
+      company_id: company_id,
       value: data.value || null,
       pdf_url: data.pdf_url || null
     }])
@@ -182,8 +200,8 @@ async function createProposal(supabase: any, request: CreateProposalRequest) {
     .insert({
       description: `Proposta "${proposal.title}" criada via API.`,
       type: 'PROPOSAL_CREATED',
-      user_id: data.owner_id,
-      related_company_id: data.company_id
+      user_id: owner_id,
+      related_company_id: company_id
     });
 
   return new Response(
@@ -219,10 +237,41 @@ async function updateProposal(supabase: any, request: UpdateProposalRequest) {
     );
   }
 
+  // Converter nomes para IDs se fornecidos
+  let updateData = { ...data };
+  if (data.owner_name || data.project_name || data.company_name) {
+    const conversionResult = await convertNamesToIds(supabase, data);
+    if (!conversionResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Conversion error', 
+          details: conversionResult.error 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Substituir os nomes pelos IDs
+    updateData = {
+      ...data,
+      owner_id: conversionResult.owner_id,
+      project_id: conversionResult.project_id,
+      company_id: conversionResult.company_id
+    };
+    
+    // Remover os campos de nome do update
+    delete updateData.owner_name;
+    delete updateData.project_name;
+    delete updateData.company_name;
+  }
+
   // Atualizar proposta
   const { data: updatedProposal, error } = await supabase
     .from('proposals')
-    .update(data)
+    .update(updateData)
     .eq('id', id)
     .select(`
       *,
@@ -302,13 +351,25 @@ async function getProposals(supabase: any, request: GetProposalRequest) {
     );
   }
 
-  // Aplicar filtros se fornecidos
+  // Aplicar filtros se fornecidos (usando nomes)
   if (request.filters) {
-    const { company_id, project_id, owner_id, status } = request.filters;
+    const { company_name, project_name, owner_name, status } = request.filters;
     
-    if (company_id) query = query.eq('company_id', company_id);
-    if (project_id) query = query.eq('project_id', project_id);
-    if (owner_id) query = query.eq('owner_id', owner_id);
+    // Converter nomes para IDs para aplicar filtros
+    if (company_name || project_name || owner_name) {
+      const conversionResult = await convertNamesToIds(supabase, {
+        company_name,
+        project_name,
+        owner_name
+      });
+      
+      if (conversionResult.success) {
+        if (conversionResult.company_id) query = query.eq('company_id', conversionResult.company_id);
+        if (conversionResult.project_id) query = query.eq('project_id', conversionResult.project_id);
+        if (conversionResult.owner_id) query = query.eq('owner_id', conversionResult.owner_id);
+      }
+    }
+    
     if (status) query = query.eq('status', status);
   }
 
@@ -394,4 +455,65 @@ async function deleteProposal(supabase: any, request: DeleteProposalRequest) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     }
   );
+}
+
+// Função auxiliar para converter nomes em IDs
+async function convertNamesToIds(supabase: any, data: any) {
+  try {
+    let owner_id = null;
+    let project_id = null;
+    let company_id = null;
+
+    // Converter nome do responsável para ID
+    if (data.owner_name) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('name', data.owner_name)
+        .single();
+
+      if (userError || !user) {
+        return { success: false, error: `Responsável "${data.owner_name}" não encontrado` };
+      }
+      owner_id = user.id;
+    }
+
+    // Converter nome do projeto para ID
+    if (data.project_name) {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('title', data.project_name)
+        .single();
+
+      if (projectError || !project) {
+        return { success: false, error: `Projeto "${data.project_name}" não encontrado` };
+      }
+      project_id = project.id;
+    }
+
+    // Converter nome da empresa para ID
+    if (data.company_name) {
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('name', data.company_name)
+        .single();
+
+      if (companyError || !company) {
+        return { success: false, error: `Empresa "${data.company_name}" não encontrada` };
+      }
+      company_id = company.id;
+    }
+
+    return {
+      success: true,
+      owner_id,
+      project_id,
+      company_id
+    };
+
+  } catch (error) {
+    return { success: false, error: `Erro na conversão: ${error.message}` };
+  }
 }
