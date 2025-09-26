@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,37 +20,63 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+const App = () => {
+  console.log("DEBUG: App component mounting");
+  
+  return (
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/pipeline" element={<Pipeline />} />
-                  <Route path="/projetos" element={<Projects />} />
-                  <Route path="/empresas" element={<Companies />} />
-                  
-                  <Route path="/tarefas" element={<Tasks />} />
-                  <Route path="/propostas" element={<Proposals />} />
-                  <Route path="/configuracoes" element={<Settings />} />
-                  <Route path="/ai-monitoring" element={<AIMonitoring />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AppLayout>
-            } />
-          </Routes>
+          <SafeTooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/pipeline" element={<Pipeline />} />
+                    <Route path="/projetos" element={<Projects />} />
+                    <Route path="/empresas" element={<Companies />} />
+                    
+                    <Route path="/tarefas" element={<Tasks />} />
+                    <Route path="/propostas" element={<Proposals />} />
+                    <Route path="/configuracoes" element={<Settings />} />
+                    <Route path="/ai-monitoring" element={<AIMonitoring />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AppLayout>
+              } />
+            </Routes>
+          </SafeTooltipProvider>
         </AuthProvider>
       </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
+
+// Safe wrapper for TooltipProvider to prevent useRef errors
+const SafeTooltipProvider = ({ children }: { children: React.ReactNode }) => {
+  const [mounted, setMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // If not mounted yet, render children without TooltipProvider
+  if (!mounted) {
+    return <>{children}</>;
+  }
+  
+  // Once mounted, safely render with TooltipProvider
+  try {
+    return <TooltipProvider>{children}</TooltipProvider>;
+  } catch (error) {
+    console.error("TooltipProvider error:", error);
+    return <>{children}</>;
+  }
+};
 
 export default App;
