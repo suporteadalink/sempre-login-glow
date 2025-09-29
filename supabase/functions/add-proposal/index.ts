@@ -27,16 +27,80 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseClient = createClient(
+    // Get the authorization header first to validate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Token de autorização obrigatório' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Initialize client with anon key first to check user role
+    const anonClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      supabaseClient.auth.setSession({ access_token: authHeader.replace('Bearer ', ''), refresh_token: '' });
+    // Set session to get current user
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Token inválido ou expirado' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Authenticated user:', user.id);
+
+    // Check user role
+    const { data: userData, error: userError } = await anonClient
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (userError) {
+      console.error('Error fetching user role:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao verificar permissões do usuário' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userRole = userData?.role || 'vendedor';
+    console.log('User role:', userRole);
+
+    // Initialize the appropriate Supabase client based on user role and operation
+    let supabaseClient;
+    if (userRole === 'admin') {
+      // Use service role for admin operations (bypasses RLS)
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      );
+      console.log('Using service role client for admin user');
+    } else {
+      // Use anon key for regular users with proper session
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      );
+      const { error: sessionError } = await supabaseClient.auth.setSession({
+        access_token: token,
+        refresh_token: ''
+      });
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        return new Response(
+          JSON.stringify({ error: 'Erro ao estabelecer sessão' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log('Using anon client with session for regular user');
     }
 
     if (req.method !== 'POST') {
@@ -104,7 +168,7 @@ serve(async (req) => {
       }
       projectId = project.id;
     }
-    
+     
     // Validate required fields
     if (!companyId || !ownerId || !projectId || !requestData.status) {
       return new Response(
@@ -114,6 +178,18 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Validate delegation permissions
+    if (userRole !== 'admin' && ownerId !== user.id) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Apenas administradores podem delegar propostas para outros usuários' 
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Validation passed. Creating proposal for owner:', ownerId, 'by user:', user.id);
 
     // Auto-generate title if not provided
     let title = requestData.title;
@@ -139,6 +215,18 @@ serve(async (req) => {
     }
 
     // Insert the proposal
+    console.log('Attempting to insert proposal with data:', {
+      title,
+      company_id: companyId,
+      owner_id: ownerId,
+      project_id: projectId,
+      status: requestData.status,
+      value: requestData.value || null,
+      pdf_url: requestData.pdf_url || null,
+      authenticated_user: user.id,
+      user_role: userRole
+    });
+
     const { data: proposal, error: insertError } = await supabaseClient
       .from('proposals')
       .insert([{
