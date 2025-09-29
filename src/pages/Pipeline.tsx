@@ -33,6 +33,7 @@ interface Opportunity {
   project_id?: number | null;
   companies: {
     name: string;
+    annual_revenue?: number;
     projects?: Array<{
       id: number;
       title: string;
@@ -61,6 +62,7 @@ interface PipelineItem {
   created_at?: string;
   companies: {
     name: string;
+    annual_revenue?: number;
     projects?: Array<{
       id: number;
       title: string;
@@ -191,7 +193,7 @@ interface OpportunityCardProps {
 }
 
 function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId, aceitosStageId }: OpportunityCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const canDelete = isAdmin || opportunity.owner_id === currentUserId;
   const isInAceitos = opportunity.stage_id === aceitosStageId;
   const needsProject = isInAceitos && !opportunity.project_id;
@@ -228,7 +230,7 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
                 className="h-6 w-6 p-0 opacity-70 hover:opacity-100"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowDetails(!showDetails);
+                  setShowDetailsModal(true);
                 }}
                 title="Ver mais detalhes"
               >
@@ -271,8 +273,8 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
               {new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
                 currency: 'BRL'
-              }).format(opportunity.value)}
-              <span className="text-xs text-muted-foreground ml-1">Oportunidade</span>
+              }).format(opportunity.companies?.annual_revenue || 0)}
+              <span className="text-xs text-muted-foreground ml-1">Receita Anual</span>
             </div>
             
             {currentProject && currentProject.budget && (
@@ -298,41 +300,68 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
             )}
           </div>
           
-          {/* Additional details when expanded */}
-          {showDetails && hasAdditionalData && (
-            <div className="mt-2 p-2 bg-muted/50 rounded text-xs space-y-1">
-              {hasMultipleProjects && (
-                <div>
-                  <span className="font-medium">Projetos ({projects.length}):</span>
-                  {projects.slice(0, 2).map(project => (
-                    <div key={project.id} className="ml-2 text-muted-foreground">
-                      • {project.title} - {project.status}
+          {/* Modal for additional details */}
+          <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Detalhes - {opportunity.companies?.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {hasMultipleProjects && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />
+                      Projetos ({projects.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {projects.map(project => (
+                        <div key={project.id} className="flex justify-between items-center p-2 bg-muted/50 rounded text-sm">
+                          <div>
+                            <div className="font-medium">{project.title}</div>
+                            <div className="text-muted-foreground text-xs">{project.status}</div>
+                          </div>
+                          {project.budget && (
+                            <div className="text-blue-600 font-medium">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(project.budget)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {projects.length > 2 && (
-                    <div className="ml-2 text-muted-foreground">
-                      • +{projects.length - 2} mais...
+                  </div>
+                )}
+                {hasMultipleProposals && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Propostas ({proposals.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {proposals.map(proposal => (
+                        <div key={proposal.id} className="flex justify-between items-center p-2 bg-muted/50 rounded text-sm">
+                          <div>
+                            <div className="font-medium">{proposal.title}</div>
+                            <div className="text-muted-foreground text-xs">{proposal.status}</div>
+                          </div>
+                          {proposal.value && (
+                            <div className="text-purple-600 font-medium">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(proposal.value)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
-              {hasMultipleProposals && (
-                <div>
-                  <span className="font-medium">Propostas ({proposals.length}):</span>
-                  {proposals.slice(0, 2).map(proposal => (
-                    <div key={proposal.id} className="ml-2 text-muted-foreground">
-                      • {proposal.title} - {proposal.status}
-                    </div>
-                  ))}
-                  {proposals.length > 2 && (
-                    <div className="ml-2 text-muted-foreground">
-                      • +{proposals.length - 2} mais...
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           
           {/* Project section for "Aceitos" stage */}
           {isInAceitos && (
@@ -416,6 +445,7 @@ export default function Pipeline() {
           *,
           companies (
             name,
+            annual_revenue,
             projects (
               id,
               title,
