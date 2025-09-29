@@ -87,10 +87,10 @@ const Tasks = () => {
         `)
         .order("created_at", { ascending: false });
 
-      // Apply company filter if selected
+      // Apply company filter if selected - simplified to only filter by direct company_id
       if (selectedCompanyId !== "all") {
         const companyId = parseInt(selectedCompanyId);
-        query = query.or(`company_id.eq.${companyId},contacts.company_id.eq.${companyId},projects.company_id.eq.${companyId},opportunities.company_id.eq.${companyId}`);
+        query = query.eq("company_id", companyId);
       }
 
       const { data, error } = await query;
@@ -339,10 +339,10 @@ const Tasks = () => {
           ) : tasks.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-lg mb-4">
-                Nenhuma tarefa encontrada
+                {selectedCompanyId !== "all" ? "Empresa sem tarefas vinculadas" : "Nenhuma tarefa encontrada"}
               </p>
               <p className="text-muted-foreground text-sm">
-                Comece criando sua primeira tarefa
+                {selectedCompanyId !== "all" ? "Esta empresa não possui tarefas associadas" : "Comece criando sua primeira tarefa"}
               </p>
             </div>
           ) : (
