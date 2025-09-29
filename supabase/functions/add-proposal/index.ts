@@ -1,9 +1,10 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 interface AddProposalRequest {
   company_id: number;
@@ -15,17 +16,24 @@ interface AddProposalRequest {
   pdf_url?: string;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
+    // Initialize Supabase client
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
+
+    // Get the authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      supabaseClient.auth.setSession({ access_token: authHeader.replace('Bearer ', ''), refresh_token: '' });
+    }
 
     if (req.method !== 'POST') {
       return new Response(
@@ -35,6 +43,7 @@ Deno.serve(async (req) => {
     }
 
     const requestData: AddProposalRequest = await req.json();
+    console.log('Received request:', requestData);
     
     // Validate required fields
     if (!requestData.company_id || !requestData.owner_id || !requestData.project_id || !requestData.status) {
@@ -50,25 +59,29 @@ Deno.serve(async (req) => {
     let title = requestData.title;
     if (!title) {
       // Get company and project names for auto-generated title
-      const { data: company } = await supabase
+      const { data: company } = await supabaseClient
         .from('companies')
         .select('name')
         .eq('id', requestData.company_id)
         .single();
 
-      const { data: project } = await supabase
+      const { data: project } = await supabaseClient
         .from('projects')
-        .select('title')
+        .select('title, project_code')
         .eq('id', requestData.project_id)
         .single();
 
-      title = `Proposta ${company?.name || 'Empresa'} - ${project?.title || 'Projeto'}`;
+      const companyName = company?.name || `Empresa #${requestData.company_id}`;
+      const projectTitle = project?.title || `Projeto #${requestData.project_id}`;
+      const projectCode = project?.project_code ? `[${project.project_code}] ` : '';
+      
+      title = `Proposta ${companyName} - ${projectCode}${projectTitle}`;
     }
 
     // Insert the proposal
-    const { data: proposal, error: insertError } = await supabase
+    const { data: proposal, error: insertError } = await supabaseClient
       .from('proposals')
-      .insert({
+      .insert([{
         title,
         company_id: requestData.company_id,
         owner_id: requestData.owner_id,
@@ -76,8 +89,12 @@ Deno.serve(async (req) => {
         status: requestData.status,
         value: requestData.value || null,
         pdf_url: requestData.pdf_url || null
-      })
-      .select()
+      }])
+      .select(`
+        *,
+        companies:company_id(id, name),
+        projects:project_id(id, title, project_code)
+      `)
       .single();
 
     if (insertError) {
@@ -89,13 +106,13 @@ Deno.serve(async (req) => {
     }
 
     // Log the activity
-    const { data: user } = await supabase
+    const { data: user } = await supabaseClient
       .from('users')
       .select('name')
       .eq('id', requestData.owner_id)
       .single();
 
-    await supabase
+    await supabaseClient
       .from('activity_log')
       .insert({
         description: `${user?.name || 'Usuário'} criou a proposta "${title}".`,
@@ -109,8 +126,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        proposal,
-        message: 'Proposta criada com sucesso' 
+        message: 'Proposta criada com sucesso',
+        proposal
       }),
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -118,7 +135,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor' }),
+      JSON.stringify({ error: 'Erro interno do servidor', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

@@ -3,6 +3,9 @@ project_id = "xrfaptpqlllibcopnzdm"
 [functions.add-proposal]
 verify_jwt = true
 
+[functions.manage-proposals]
+verify_jwt = true
+
 [api]
 enabled = true
 port = 54321
