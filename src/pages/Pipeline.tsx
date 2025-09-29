@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus, Building2, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Plus, Building2, AlertTriangle, Eye, FileText, FolderOpen } from "lucide-react";
 import { ProjectSelector } from "@/components/opportunities/ProjectSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
@@ -33,6 +33,18 @@ interface Opportunity {
   project_id?: number | null;
   companies: {
     name: string;
+    projects?: Array<{
+      id: number;
+      title: string;
+      budget?: number;
+      status: string;
+    }>;
+    proposals?: Array<{
+      id: number;
+      title: string;
+      value?: number;
+      status: string;
+    }>;
   };
   users: {
     name: string;
@@ -49,6 +61,18 @@ interface PipelineItem {
   created_at?: string;
   companies: {
     name: string;
+    projects?: Array<{
+      id: number;
+      title: string;
+      budget?: number;
+      status: string;
+    }>;
+    proposals?: Array<{
+      id: number;
+      title: string;
+      value?: number;
+      status: string;
+    }>;
   };
   users: {
     name: string;
@@ -167,15 +191,26 @@ interface OpportunityCardProps {
 }
 
 function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId, aceitosStageId }: OpportunityCardProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const canDelete = isAdmin || opportunity.owner_id === currentUserId;
   const isInAceitos = opportunity.stage_id === aceitosStageId;
   const needsProject = isInAceitos && !opportunity.project_id;
   
+  // Get current project and proposal info
+  const projects = opportunity.companies?.projects || [];
+  const proposals = opportunity.companies?.proposals || [];
+  const currentProject = projects.find(p => p.id === opportunity.project_id);
+  const currentProposal = proposals.find(p => p.status === 'Aceita' || p.status === 'Pendente');
+  
+  const hasMultipleProjects = projects.length > 1;
+  const hasMultipleProposals = proposals.length > 1;
+  const hasAdditionalData = hasMultipleProjects || hasMultipleProposals;
+  
   return (
-    <Card className={`h-[200px] flex flex-col rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border ${
+    <Card className={`h-[240px] flex flex-col rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing bg-background border ${
       needsProject ? 'border-orange-400 border-2' : ''
     }`}>
-      <CardHeader className="pb-3 flex-shrink-0">
+      <CardHeader className="pb-2 flex-shrink-0">
         <div className="flex items-start justify-between">
           <h4 className="font-bold text-sm leading-tight line-clamp-2 flex-1 mr-2">
             {opportunity.title}
@@ -186,10 +221,24 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
                 <AlertTriangle className="h-4 w-4 text-orange-500" />
               </div>
             )}
+            {hasAdditionalData && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 opacity-70 hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDetails(!showDetails);
+                }}
+                title="Ver mais detalhes"
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-70 hover:opacity-100">
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-70 hover:opacity-100">
+                  <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="z-50">
@@ -209,12 +258,81 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 flex-1 flex flex-col justify-between space-y-3">
-        <div className="space-y-3">
+      <CardContent className="pt-0 flex-1 flex flex-col justify-between space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Building2 className="h-4 w-4" />
             <span className="text-sm truncate">{opportunity.companies?.name}</span>
           </div>
+          
+          {/* Values section */}
+          <div className="space-y-1">
+            <div className="text-lg font-semibold text-green-600">
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(opportunity.value)}
+              <span className="text-xs text-muted-foreground ml-1">Oportunidade</span>
+            </div>
+            
+            {currentProject && currentProject.budget && (
+              <div className="text-sm font-medium text-blue-600 flex items-center gap-1">
+                <FolderOpen className="h-3 w-3" />
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(currentProject.budget)}
+                <span className="text-xs text-muted-foreground">Projeto</span>
+              </div>
+            )}
+            
+            {currentProposal && currentProposal.value && (
+              <div className="text-sm font-medium text-purple-600 flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(currentProposal.value)}
+                <span className="text-xs text-muted-foreground">Proposta</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Additional details when expanded */}
+          {showDetails && hasAdditionalData && (
+            <div className="mt-2 p-2 bg-muted/50 rounded text-xs space-y-1">
+              {hasMultipleProjects && (
+                <div>
+                  <span className="font-medium">Projetos ({projects.length}):</span>
+                  {projects.slice(0, 2).map(project => (
+                    <div key={project.id} className="ml-2 text-muted-foreground">
+                      • {project.title} - {project.status}
+                    </div>
+                  ))}
+                  {projects.length > 2 && (
+                    <div className="ml-2 text-muted-foreground">
+                      • +{projects.length - 2} mais...
+                    </div>
+                  )}
+                </div>
+              )}
+              {hasMultipleProposals && (
+                <div>
+                  <span className="font-medium">Propostas ({proposals.length}):</span>
+                  {proposals.slice(0, 2).map(proposal => (
+                    <div key={proposal.id} className="ml-2 text-muted-foreground">
+                      • {proposal.title} - {proposal.status}
+                    </div>
+                  ))}
+                  {proposals.length > 2 && (
+                    <div className="ml-2 text-muted-foreground">
+                      • +{proposals.length - 2} mais...
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Project section for "Aceitos" stage */}
           {isInAceitos && (
@@ -229,29 +347,23 @@ function OpportunityCard({ opportunity, onEdit, onDelete, isAdmin, currentUserId
                   opportunityId={opportunity.id as number}
                   companyId={opportunity.company_id}
                   currentProjectId={opportunity.project_id}
-                trigger={
-                  <Button 
-                    variant={needsProject ? "default" : "outline"} 
-                    size="sm" 
-                    className="w-full gap-2 pointer-events-auto"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {opportunity.project_id ? "Alterar Projeto" : "Selecionar Projeto"}
-                  </Button>
-                }
-              />
+                  trigger={
+                    <Button 
+                      variant={needsProject ? "default" : "outline"} 
+                      size="sm" 
+                      className="w-full gap-2 pointer-events-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {opportunity.project_id ? "Alterar Projeto" : "Selecionar Projeto"}
+                    </Button>
+                  }
+                />
               )}
             </div>
           )}
         </div>
         
-        <div className="flex items-center justify-between mt-auto">
-          <div className="text-lg font-semibold text-green-600">
-            {new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(opportunity.value)}
-          </div>
+        <div className="flex items-center justify-end mt-auto">
           {opportunity.users && (
             <div className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
               {opportunity.users.name}
@@ -302,7 +414,21 @@ export default function Pipeline() {
         .from("opportunities")
         .select(`
           *,
-          companies (name),
+          companies (
+            name,
+            projects (
+              id,
+              title,
+              budget,
+              status
+            ),
+            proposals (
+              id,
+              title,
+              value,
+              status
+            )
+          ),
           users:owner_id (name),
           projects:project_id (title)
         `)
