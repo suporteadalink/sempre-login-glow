@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface AddProposalRequest {
-  company_id: number;
-  owner_id: string;
-  project_id: number;
+  // Accept either ID or name for each entity
+  company_id?: number;
+  company_name?: string;
+  owner_id?: string;
+  owner_name?: string;
+  project_id?: number;
+  project_title?: string;
   status: string;
   title?: string;
   value?: number;
@@ -45,11 +49,67 @@ serve(async (req) => {
     const requestData: AddProposalRequest = await req.json();
     console.log('Received request:', requestData);
     
+    // Resolve IDs from names if needed
+    let companyId = requestData.company_id;
+    let ownerId = requestData.owner_id;
+    let projectId = requestData.project_id;
+
+    // Resolve company ID from name if provided
+    if (!companyId && requestData.company_name) {
+      const { data: company } = await supabaseClient
+        .from('companies')
+        .select('id')
+        .eq('name', requestData.company_name)
+        .single();
+      
+      if (!company) {
+        return new Response(
+          JSON.stringify({ error: `Empresa "${requestData.company_name}" não encontrada` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      companyId = company.id;
+    }
+
+    // Resolve owner ID from name if provided
+    if (!ownerId && requestData.owner_name) {
+      const { data: user } = await supabaseClient
+        .from('users')
+        .select('id')
+        .eq('name', requestData.owner_name)
+        .single();
+      
+      if (!user) {
+        return new Response(
+          JSON.stringify({ error: `Usuário "${requestData.owner_name}" não encontrado` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      ownerId = user.id;
+    }
+
+    // Resolve project ID from title if provided
+    if (!projectId && requestData.project_title) {
+      const { data: project } = await supabaseClient
+        .from('projects')
+        .select('id')
+        .eq('title', requestData.project_title)
+        .single();
+      
+      if (!project) {
+        return new Response(
+          JSON.stringify({ error: `Projeto "${requestData.project_title}" não encontrado` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      projectId = project.id;
+    }
+    
     // Validate required fields
-    if (!requestData.company_id || !requestData.owner_id || !requestData.project_id || !requestData.status) {
+    if (!companyId || !ownerId || !projectId || !requestData.status) {
       return new Response(
         JSON.stringify({ 
-          error: 'Campos obrigatórios: company_id, owner_id, project_id, status' 
+          error: 'Campos obrigatórios: (company_id ou company_name), (owner_id ou owner_name), (project_id ou project_title), status' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -62,17 +122,17 @@ serve(async (req) => {
       const { data: company } = await supabaseClient
         .from('companies')
         .select('name')
-        .eq('id', requestData.company_id)
+        .eq('id', companyId)
         .single();
 
       const { data: project } = await supabaseClient
         .from('projects')
         .select('title, project_code')
-        .eq('id', requestData.project_id)
+        .eq('id', projectId)
         .single();
 
-      const companyName = company?.name || `Empresa #${requestData.company_id}`;
-      const projectTitle = project?.title || `Projeto #${requestData.project_id}`;
+      const companyName = company?.name || `Empresa #${companyId}`;
+      const projectTitle = project?.title || `Projeto #${projectId}`;
       const projectCode = project?.project_code ? `[${project.project_code}] ` : '';
       
       title = `Proposta ${companyName} - ${projectCode}${projectTitle}`;
@@ -83,9 +143,9 @@ serve(async (req) => {
       .from('proposals')
       .insert([{
         title,
-        company_id: requestData.company_id,
-        owner_id: requestData.owner_id,
-        project_id: requestData.project_id,
+        company_id: companyId,
+        owner_id: ownerId,
+        project_id: projectId,
         status: requestData.status,
         value: requestData.value || null,
         pdf_url: requestData.pdf_url || null
@@ -109,7 +169,7 @@ serve(async (req) => {
     const { data: user } = await supabaseClient
       .from('users')
       .select('name')
-      .eq('id', requestData.owner_id)
+      .eq('id', ownerId)
       .single();
 
     await supabaseClient
@@ -117,8 +177,8 @@ serve(async (req) => {
       .insert({
         description: `${user?.name || 'Usuário'} criou a proposta "${title}".`,
         type: 'PROPOSAL_CREATED',
-        user_id: requestData.owner_id,
-        related_company_id: requestData.company_id
+        user_id: ownerId,
+        related_company_id: companyId
       });
 
     console.log('Proposal created successfully:', proposal.id);
