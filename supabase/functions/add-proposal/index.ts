@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,19 +137,19 @@ serve(async (req) => {
 
     // Resolve owner ID from name if provided
     if (!ownerId && requestData.owner_name) {
-      const { data: user } = await supabaseClient
+      const { data: ownerUser } = await supabaseClient
         .from('users')
         .select('id')
         .eq('name', requestData.owner_name)
         .single();
       
-      if (!user) {
+      if (!ownerUser) {
         return new Response(
           JSON.stringify({ error: `Usuário "${requestData.owner_name}" não encontrado` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      ownerId = user.id;
+      ownerId = ownerUser.id;
     }
 
     // Resolve project ID from title if provided
@@ -254,7 +254,7 @@ serve(async (req) => {
     }
 
     // Log the activity
-    const { data: user } = await supabaseClient
+    const { data: logUser } = await supabaseClient
       .from('users')
       .select('name')
       .eq('id', ownerId)
@@ -263,7 +263,7 @@ serve(async (req) => {
     await supabaseClient
       .from('activity_log')
       .insert({
-        description: `${user?.name || 'Usuário'} criou a proposta "${title}".`,
+        description: `${logUser?.name || 'Usuário'} criou a proposta "${title}".`,
         type: 'PROPOSAL_CREATED',
         user_id: ownerId,
         related_company_id: companyId
