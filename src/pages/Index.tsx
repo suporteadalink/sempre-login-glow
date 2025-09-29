@@ -608,36 +608,59 @@ const Index = () => {
                 </div>
               </div>
             ) : pipelineData.length > 0 ? (
-              <ChartContainer
-                config={{
-                  count: {
-                    label: "Oportunidades",
-                  },
-                }}
-                className="h-48"
-              >
-                <ResponsiveContainer width="100%" height={192}>
-                  <PieChart width={400} height={192}>
-                    <Pie
-                      data={pipelineData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="count"
-                      nameKey="stage"
-                      label={({ stage, count }) => `${stage}: ${count}`}
-                    >
-                      {pipelineData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.color || `hsl(${index * 45}, 70%, 50%)`}
-                        />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <div className="flex flex-col lg:flex-row items-center gap-4">
+                <ChartContainer
+                  config={{
+                    count: {
+                      label: "Oportunidades",
+                    },
+                  }}
+                  className="h-48 w-full lg:w-1/2"
+                >
+                  <ResponsiveContainer width="100%" height={192}>
+                    <PieChart width={300} height={192}>
+                      <Pie
+                        data={pipelineData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        dataKey="count"
+                        nameKey="stage"
+                        label={false}
+                      >
+                        {pipelineData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.color || `hsl(${index * 45}, 70%, 50%)`}
+                          />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+                
+                {/* Legend */}
+                <div className="flex flex-col gap-2 w-full lg:w-1/2">
+                  {pipelineData.map((entry, index) => (
+                    <div key={entry.stage} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20 border">
+                      <div 
+                        className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                        style={{ backgroundColor: entry.color || `hsl(${index * 45}, 70%, 50%)` }}
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-foreground">{entry.stage}</span>
+                        <div className="text-xs text-muted-foreground">
+                          {entry.count} oportunidade{entry.count !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">
+                        {Math.round((entry.count / pipelineData.reduce((sum, item) => sum + item.count, 0)) * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-48">
                 <p className="text-sm text-muted-foreground">Nenhum dado disponível</p>
