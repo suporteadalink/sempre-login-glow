@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,7 +38,13 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Initialize client with anon key first to check user role
+    // Initialize service role client first for user validation
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // Initialize anon client for auth validation
     const anonClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -56,8 +62,8 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    // Check user role
-    const { data: userData, error: userError } = await anonClient
+    // Check user role using service client to avoid RLS issues
+    const { data: userData, error: userError } = await serviceClient
       .from('users')
       .select('role')
       .eq('id', user.id)
@@ -78,10 +84,7 @@ serve(async (req) => {
     let supabaseClient;
     if (userRole === 'admin') {
       // Use service role for admin operations (bypasses RLS)
-      supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      );
+      supabaseClient = serviceClient;
       console.log('Using service role client for admin user');
     } else {
       // Use anon key for regular users with proper session
