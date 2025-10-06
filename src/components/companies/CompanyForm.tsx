@@ -154,6 +154,7 @@ const contactItemSchema = z.object({
     .min(10, "Telefone é obrigatório")
     .max(20, "Telefone muito longo")
     .regex(/^\(\d{2}\) \d{4,5}-?\d{4}$/, "Formato: (11) 93385-1277 ou similar"),
+  email: z.string().optional(),
   role: z.string().min(1, "Cargo é obrigatório")
 });
 
@@ -161,9 +162,10 @@ const contactItemSchema = z.object({
 const optionalContactSchema = z.object({
   name: z.string(),
   phone: z.string(),
+  email: z.string(),
   role: z.string()
 }).refine((contact) => {
-  // Se qualquer campo estiver preenchido, todos devem estar preenchidos
+  // Se qualquer campo estiver preenchido, todos devem estar preenchidos (exceto email que é opcional)
   const hasAnyField = contact.name || contact.phone || contact.role;
   if (!hasAnyField) return true; // Contato completamente vazio é válido
   
@@ -196,7 +198,8 @@ const companySchema = z.object({
   opportunity_title: z.string().optional(),
   contacts: z.array(z.object({
     name: z.string().optional(),
-    phone: z.string().optional(), 
+    phone: z.string().optional(),
+    email: z.string().optional(),
     role: z.string().optional()
   })).length(3).optional()
 });
@@ -272,9 +275,9 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
       stage_id: "",
       opportunity_title: "",
       contacts: [
-        { name: "", phone: "", role: "" },
-        { name: "", phone: "", role: "" },
-        { name: "", phone: "", role: "" }
+        { name: "", phone: "", email: "", role: "" },
+        { name: "", phone: "", email: "", role: "" },
+        { name: "", phone: "", email: "", role: "" }
       ]
     },
   });
@@ -303,9 +306,9 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
     if (company) {
       // Prepare contacts array with existing contacts + empty slots
       const contactsArray = [
-        { name: "", phone: "", role: "" },
-        { name: "", phone: "", role: "" },
-        { name: "", phone: "", role: "" }
+        { name: "", phone: "", email: "", role: "" },
+        { name: "", phone: "", email: "", role: "" },
+        { name: "", phone: "", email: "", role: "" }
       ];
       
       // Fill with existing contacts
@@ -314,6 +317,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
           contactsArray[index] = {
             name: contact.name || "",
             phone: contact.phone || "",
+            email: contact.email || "",
             role: contact.role || ""
           };
         }
@@ -417,6 +421,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               .insert({
                 name: contact.name || "",
                 phone: contact.phone || "",
+                email: contact.email || "",
                 role: contact.role || "",
                 company_id: company.id,
                 owner_id: companyOwnerId
@@ -453,6 +458,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               .insert({
                 name: contact.name || "",
                 phone: contact.phone || "",
+                email: contact.email || "",
                 role: contact.role || "",
                 company_id: newCompany.id,
                 owner_id: companyOwnerId
@@ -872,7 +878,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                     Contato {index + 1}
                     <span className="text-muted-foreground text-sm ml-2">(Opcional)</span>
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <FormField
                       control={form.control}
                       name={`contacts.${index}.name`}
@@ -903,6 +909,24 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
                                 form.trigger(`contacts.${index}.phone`);
                               }}
                               maxLength={15}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`contacts.${index}.email`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              placeholder="contato@email.com" 
+                              {...field} 
                             />
                           </FormControl>
                           <FormMessage />
