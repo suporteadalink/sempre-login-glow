@@ -452,12 +452,28 @@ export default function Settings() {
     if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Sessão não encontrada');
+      }
 
-      if (error) throw error;
+      const response = await fetch(
+        'https://xrfaptpqlllibcopnzdm.supabase.co/functions/v1/delete-user',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ userId })
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao excluir usuário');
+      }
       
       toast({
         title: "Sucesso",
