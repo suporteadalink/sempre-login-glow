@@ -226,6 +226,96 @@ export type Database = {
           },
         ]
       }
+      follow_ups: {
+        Row: {
+          company_id: number | null
+          contact_id: number | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: number
+          name: string
+          notes: string | null
+          opportunity_id: number | null
+          priority: string | null
+          project_id: number | null
+          responsible_id: string | null
+          status: string | null
+          type: string | null
+        }
+        Insert: {
+          company_id?: number | null
+          contact_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: never
+          name: string
+          notes?: string | null
+          opportunity_id?: number | null
+          priority?: string | null
+          project_id?: number | null
+          responsible_id?: string | null
+          status?: string | null
+          type?: string | null
+        }
+        Update: {
+          company_id?: number | null
+          contact_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: never
+          name?: string
+          notes?: string | null
+          opportunity_id?: number | null
+          priority?: string | null
+          project_id?: number | null
+          responsible_id?: string | null
+          status?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string | null
@@ -596,96 +686,6 @@ export type Database = {
           {
             foreignKeyName: "proposals_owner_id_fkey"
             columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tasks: {
-        Row: {
-          company_id: number | null
-          contact_id: number | null
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          estimated_hours: number | null
-          id: number
-          name: string
-          notes: string | null
-          opportunity_id: number | null
-          priority: string | null
-          project_id: number | null
-          responsible_id: string | null
-          status: string | null
-          type: string | null
-        }
-        Insert: {
-          company_id?: number | null
-          contact_id?: number | null
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimated_hours?: number | null
-          id?: never
-          name: string
-          notes?: string | null
-          opportunity_id?: number | null
-          priority?: string | null
-          project_id?: number | null
-          responsible_id?: string | null
-          status?: string | null
-          type?: string | null
-        }
-        Update: {
-          company_id?: number | null
-          contact_id?: number | null
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimated_hours?: number | null
-          id?: never
-          name?: string
-          notes?: string | null
-          opportunity_id?: number | null
-          priority?: string | null
-          project_id?: number | null
-          responsible_id?: string | null
-          status?: string | null
-          type?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tasks_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_opportunity_id_fkey"
-            columns: ["opportunity_id"]
-            isOneToOne: false
-            referencedRelation: "opportunities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_responsible_id_fkey"
-            columns: ["responsible_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]

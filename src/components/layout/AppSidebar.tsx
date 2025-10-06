@@ -35,7 +35,7 @@ const navigationItems = [
   { title: "Projetos", url: "/projetos", icon: FolderOpen },
   { title: "Empresas", url: "/empresas", icon: Building2 },
   
-  { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
+  { title: "Follow Ups", url: "/follow-ups", icon: CheckSquare },
   { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "IA Monitoring", url: "/ai-monitoring", icon: Bot },
   { title: "Configurações", url: "/configuracoes", icon: Settings },

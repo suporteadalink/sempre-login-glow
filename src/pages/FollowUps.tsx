@@ -13,10 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, MoreHorizontal, Edit, CheckCircle, Trash2, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { TaskForm } from "@/components/tasks/TaskForm";
+import { FollowUpForm } from "@/components/followups/FollowUpForm";
 import { useQuery } from "@tanstack/react-query";
 
-interface Task {
+interface FollowUp {
   id: number;
   name: string;
   due_date: string | null;
@@ -34,15 +34,15 @@ interface Company {
   type: string;
 }
 
-const Tasks = () => {
+const FollowUps = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUp | null>(null);
+  const [followUpToDelete, setFollowUpToDelete] = useState<FollowUp | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all");
 
   useEffect(() => {
@@ -68,22 +68,22 @@ const Tasks = () => {
 
   useEffect(() => {
     if (user) {
-      fetchTasks();
+      fetchFollowUps();
     }
   }, [user, selectedCompanyId]);
 
-  const fetchTasks = async () => {
+  const fetchFollowUps = async () => {
     try {
       setIsLoading(true);
       
       let query = supabase
-        .from("tasks")
+        .from("follow_ups")
         .select(`
           *,
-          companies!tasks_company_id_fkey(name),
-          contacts!tasks_contact_id_fkey(company_id, companies!contacts_company_id_fkey(name)),
-          projects!tasks_project_id_fkey(company_id, companies!projects_company_id_fkey(name)),
-          opportunities!tasks_opportunity_id_fkey(company_id, companies!opportunities_company_id_fkey(name))
+          companies!follow_ups_company_id_fkey(name),
+          contacts!follow_ups_contact_id_fkey(company_id, companies!contacts_company_id_fkey(name)),
+          projects!follow_ups_project_id_fkey(company_id, companies!projects_company_id_fkey(name)),
+          opportunities!follow_ups_opportunity_id_fkey(company_id, companies!opportunities_company_id_fkey(name))
         `)
         .order("created_at", { ascending: false });
 
@@ -97,44 +97,44 @@ const Tasks = () => {
 
       if (error) {
         toast({
-          title: "Erro ao carregar tarefas",
+          title: "Erro ao carregar follow ups",
           description: error.message,
           variant: "destructive",
         });
       } else {
         // Transform data to include company name
-        const transformedTasks = (data || []).map(task => {
+        const transformedFollowUps = (data || []).map(followUp => {
           let companyName = "";
           
           // Direct company association
-          if (task.companies?.name) {
-            companyName = task.companies.name;
+          if (followUp.companies?.name) {
+            companyName = followUp.companies.name;
           }
           // Through contact
-          else if (task.contacts?.companies?.name) {
-            companyName = task.contacts.companies.name;
+          else if (followUp.contacts?.companies?.name) {
+            companyName = followUp.contacts.companies.name;
           }
           // Through project
-          else if (task.projects?.companies?.name) {
-            companyName = task.projects.companies.name;
+          else if (followUp.projects?.companies?.name) {
+            companyName = followUp.projects.companies.name;
           }
           // Through opportunity
-          else if (task.opportunities?.companies?.name) {
-            companyName = task.opportunities.companies.name;
+          else if (followUp.opportunities?.companies?.name) {
+            companyName = followUp.opportunities.companies.name;
           }
 
           return {
-            ...task,
+            ...followUp,
             company_name: companyName
           };
         });
 
-        setTasks(transformedTasks);
+        setFollowUps(transformedFollowUps);
       }
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Ocorreu um erro ao carregar as tarefas.",
+        description: "Ocorreu um erro ao carregar os follow ups.",
         variant: "destructive",
       });
     } finally {
@@ -190,79 +190,79 @@ const Tasks = () => {
     }
   };
 
-  const handleEdit = (task: Task) => {
-    setSelectedTask(task);
+  const handleEdit = (followUp: FollowUp) => {
+    setSelectedFollowUp(followUp);
     setIsFormOpen(true);
   };
 
-  const handleComplete = async (task: Task) => {
+  const handleComplete = async (followUp: FollowUp) => {
     try {
       const { error } = await supabase
-        .from("tasks")
+        .from("follow_ups")
         .update({ status: "Concluída" })
-        .eq("id", task.id);
+        .eq("id", followUp.id);
 
       if (error) {
         toast({
-          title: "Erro ao concluir tarefa",
+          title: "Erro ao concluir follow up",
           description: error.message,
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Tarefa concluída",
-          description: `${task.name} foi marcada como concluída.`,
+          title: "Follow up concluído",
+          description: `${followUp.name} foi marcado como concluído.`,
         });
-        fetchTasks(); // Refresh the list
+        fetchFollowUps(); // Refresh the list
       }
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Ocorreu um erro ao concluir a tarefa.",
+        description: "Ocorreu um erro ao concluir o follow up.",
         variant: "destructive",
       });
     }
   };
 
-  const handleNewTask = () => {
-    setSelectedTask(null);
+  const handleNewFollowUp = () => {
+    setSelectedFollowUp(null);
     setIsFormOpen(true);
   };
 
   const handleFormClose = () => {
     setIsFormOpen(false);
-    setSelectedTask(null);
+    setSelectedFollowUp(null);
   };
 
   const handleFormSuccess = () => {
-    fetchTasks();
+    fetchFollowUps();
   };
 
-  const handleDelete = async (task: Task) => {
+  const handleDelete = async (followUp: FollowUp) => {
     try {
       const { error } = await supabase
-        .from("tasks")
+        .from("follow_ups")
         .delete()
-        .eq("id", task.id);
+        .eq("id", followUp.id);
 
       if (error) {
         toast({
-          title: "Erro ao excluir tarefa",
+          title: "Erro ao excluir follow up",
           description: error.message,
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Tarefa excluída",
-          description: `${task.name} foi excluída com sucesso.`,
+          title: "Follow up excluído",
+          description: `${followUp.name} foi excluído com sucesso.`,
         });
-        fetchTasks(); // Refresh the list
-        setTaskToDelete(null);
+        fetchFollowUps(); // Refresh the list
+        setFollowUpToDelete(null);
       }
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Ocorreu um erro ao excluir a tarefa.",
+        description: "Ocorreu um erro ao excluir o follow up.",
         variant: "destructive",
       });
     }
@@ -292,17 +292,17 @@ const Tasks = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-foreground mb-2">
-          Lista de Tarefas
+          Lista de Follow Ups
         </h2>
         <p className="text-muted-foreground">
-          Gerencie todas as suas tarefas em um só lugar
+          Gerencie todos os seus follow ups em um só lugar
         </p>
       </div>
 
       <Card className="shadow-medium">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
           <CardTitle className="text-xl font-semibold text-foreground">
-            Tarefas
+            Follow Ups
           </CardTitle>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -322,11 +322,11 @@ const Tasks = () => {
               </Select>
             </div>
             <Button
-              onClick={handleNewTask}
+              onClick={handleNewFollowUp}
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar Nova Tarefa
+              Adicionar Novo Follow Up
             </Button>
           </div>
         </CardHeader>
@@ -334,15 +334,15 @@ const Tasks = () => {
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-muted-foreground">Carregando tarefas...</span>
+              <span className="ml-2 text-muted-foreground">Carregando follow ups...</span>
             </div>
-          ) : tasks.length === 0 ? (
+          ) : followUps.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-lg mb-4">
-                {selectedCompanyId !== "all" ? "Empresa sem tarefas vinculadas" : "Nenhuma tarefa encontrada"}
+                {selectedCompanyId !== "all" ? "Empresa sem follow ups vinculados" : "Nenhum follow up encontrado"}
               </p>
               <p className="text-muted-foreground text-sm">
-                {selectedCompanyId !== "all" ? "Esta empresa não possui tarefas associadas" : "Comece criando sua primeira tarefa"}
+                {selectedCompanyId !== "all" ? "Esta empresa não possui follow ups associados" : "Comece criando seu primeiro follow up"}
               </p>
             </div>
           ) : (
@@ -371,39 +371,39 @@ const Tasks = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tasks.map((task) => (
+                  {followUps.map((followUp) => (
                     <TableRow
-                      key={task.id}
+                      key={followUp.id}
                       className="hover:bg-muted/50 transition-colors"
                     >
                       <TableCell>
                         <div>
-                          <p className="font-medium">{task.name}</p>
-                          {task.description && (
+                          <p className="font-medium">{followUp.name}</p>
+                          {followUp.description && (
                             <p className="text-sm text-muted-foreground truncate max-w-xs">
-                              {task.description}
+                              {followUp.description}
                             </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {task.company_name || "-"}
+                        {followUp.company_name || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatDueDate(task.due_date)}
+                        {formatDueDate(followUp.due_date)}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`font-medium ${getPriorityColor(task.priority)}`}
+                          className={`font-medium ${getPriorityColor(followUp.priority)}`}
                         >
-                          {task.priority || "Não definida"}
+                          {followUp.priority || "Não definida"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`font-medium ${getStatusColor(task.status)}`}
+                          className={`font-medium ${getStatusColor(followUp.status)}`}
                         >
-                          {task.status || "Pendente"}
+                          {followUp.status || "Pendente"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -419,15 +419,15 @@ const Tasks = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() => handleEdit(task)}
+                              onClick={() => handleEdit(followUp)}
                               className="cursor-pointer"
                             >
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
                             </DropdownMenuItem>
-                            {task.status?.toLowerCase() !== "concluída" && task.status?.toLowerCase() !== "concluido" && (
+                            {followUp.status?.toLowerCase() !== "concluída" && followUp.status?.toLowerCase() !== "concluido" && (
                               <DropdownMenuItem
-                                onClick={() => handleComplete(task)}
+                                onClick={() => handleComplete(followUp)}
                                 className="cursor-pointer text-green-600 focus:text-green-600"
                               >
                                 <CheckCircle className="mr-2 h-4 w-4" />
@@ -435,7 +435,7 @@ const Tasks = () => {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
-                              onClick={() => setTaskToDelete(task)}
+                              onClick={() => setFollowUpToDelete(followUp)}
                               className="cursor-pointer text-red-600 focus:text-red-600"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -453,26 +453,26 @@ const Tasks = () => {
         </CardContent>
       </Card>
 
-      <TaskForm
+      <FollowUpForm
         isOpen={isFormOpen}
         onClose={handleFormClose}
-        task={selectedTask}
+        followUp={selectedFollowUp}
         onSuccess={handleFormSuccess}
       />
 
-      <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+      <AlertDialog open={!!followUpToDelete} onOpenChange={() => setFollowUpToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir a tarefa "{taskToDelete?.name}"? 
+              Tem certeza que deseja excluir o follow up "{followUpToDelete?.name}"? 
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => taskToDelete && handleDelete(taskToDelete)}
+              onClick={() => followUpToDelete && handleDelete(followUpToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
@@ -484,4 +484,4 @@ const Tasks = () => {
   );
 };
 
-export default Tasks;
+export default FollowUps;

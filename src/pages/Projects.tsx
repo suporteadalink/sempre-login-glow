@@ -177,25 +177,25 @@ const Projects = () => {
     try {
       setIsDeleting(true);
       
-      // First, check if there are tasks related to this project
-      const { data: relatedTasks, error: tasksError } = await supabase
-        .from("tasks")
+      // First, check if there are follow ups related to this project
+      const { data: relatedFollowUps, error: followUpsError } = await supabase
+        .from("follow_ups")
         .select("id")
         .eq("project_id", projectToDelete.id);
 
-      if (tasksError) {
-        throw tasksError;
+      if (followUpsError) {
+        throw followUpsError;
       }
 
-      // If there are related tasks, delete them first
-      if (relatedTasks && relatedTasks.length > 0) {
-        const { error: deleteTasksError } = await supabase
-          .from("tasks")
+      // If there are related follow ups, delete them first
+      if (relatedFollowUps && relatedFollowUps.length > 0) {
+        const { error: deleteFollowUpsError } = await supabase
+          .from("follow_ups")
           .delete()
           .eq("project_id", projectToDelete.id);
 
-        if (deleteTasksError) {
-          throw deleteTasksError;
+        if (deleteFollowUpsError) {
+          throw deleteFollowUpsError;
         }
       }
 
@@ -212,13 +212,13 @@ const Projects = () => {
           variant: "destructive",
         });
       } else {
-        const tasksMessage = relatedTasks && relatedTasks.length > 0 
-          ? ` e ${relatedTasks.length} tarefa(s) relacionada(s)` 
+        const followUpsMessage = relatedFollowUps && relatedFollowUps.length > 0 
+          ? ` e ${relatedFollowUps.length} follow up(s) relacionado(s)` 
           : '';
         
         toast({
           title: "Projeto excluído",
-          description: `O projeto "${projectToDelete.title}"${tasksMessage} foi excluído com sucesso.`,
+          description: `O projeto "${projectToDelete.title}"${followUpsMessage} foi excluído com sucesso.`,
         });
         fetchProjects();
       }

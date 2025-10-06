@@ -57,10 +57,10 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-interface TaskFormProps {
+interface FollowUpFormProps {
   isOpen: boolean;
   onClose: () => void;
-  task?: any;
+  followUp?: any;
   onSuccess: () => void;
 }
 
@@ -69,7 +69,7 @@ interface Option {
   name: string;
 }
 
-export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
+export function FollowUpForm({ isOpen, onClose, followUp, onSuccess }: FollowUpFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -108,21 +108,21 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
   useEffect(() => {
     if (isOpen) {
       fetchOptions();
-      if (task) {
+      if (followUp) {
         form.reset({
-          name: task.name || "",
-          description: task.description || "",
-          due_date: task.due_date ? new Date(task.due_date) : undefined,
-          priority: task.priority || "",
-          type: task.type || "",
-          status: task.status || "Pendente",
-          responsible_id: task.responsible_id?.toString() || "",
-          project_id: task.project_id?.toString() || "",
-          company_id: task.company_id?.toString() || "",
-          contact_id: task.contact_id?.toString() || "",
-          opportunity_id: task.opportunity_id?.toString() || "",
-          estimated_hours: task.estimated_hours?.toString() || "",
-          notes: task.notes || "",
+          name: followUp.name || "",
+          description: followUp.description || "",
+          due_date: followUp.due_date ? new Date(followUp.due_date) : undefined,
+          priority: followUp.priority || "",
+          type: followUp.type || "",
+          status: followUp.status || "Pendente",
+          responsible_id: followUp.responsible_id?.toString() || "",
+          project_id: followUp.project_id?.toString() || "",
+          company_id: followUp.company_id?.toString() || "",
+          contact_id: followUp.contact_id?.toString() || "",
+          opportunity_id: followUp.opportunity_id?.toString() || "",
+          estimated_hours: followUp.estimated_hours?.toString() || "",
+          notes: followUp.notes || "",
         });
       } else {
         form.reset({
@@ -142,7 +142,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
         });
       }
     }
-  }, [isOpen, task, form]);
+  }, [isOpen, followUp, form]);
 
   const fetchOptions = async () => {
     try {
@@ -247,7 +247,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
     try {
       setIsLoading(true);
 
-      const taskData = {
+      const followUpData = {
         name: values.name,
         description: values.description || null,
         due_date: values.due_date ? values.due_date.toISOString() : null,
@@ -264,16 +264,16 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
       };
 
       let error;
-      if (task) {
+      if (followUp) {
         const { error: updateError } = await supabase
-          .from("tasks")
-          .update(taskData)
-          .eq("id", task.id);
+          .from("follow_ups")
+          .update(followUpData)
+          .eq("id", followUp.id);
         error = updateError;
       } else {
         const { error: insertError } = await supabase
-          .from("tasks")
-          .insert([taskData]);
+          .from("follow_ups")
+          .insert([followUpData]);
         error = insertError;
       }
 
@@ -288,7 +288,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
 
       toast({
         title: "Sucesso",
-        description: task ? "Tarefa atualizada com sucesso!" : "Tarefa criada com sucesso!",
+        description: followUp ? "Follow up atualizado com sucesso!" : "Follow up criado com sucesso!",
       });
 
       onSuccess();
@@ -309,9 +309,9 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{task ? "Editar Tarefa" : "Adicionar Nova Tarefa"}</DialogTitle>
+          <DialogTitle>{followUp ? "Editar Follow Up" : "Adicionar Novo Follow Up"}</DialogTitle>
           <DialogDescription>
-            {task ? "Atualize as informações da tarefa." : "Preencha os campos abaixo para criar uma nova tarefa."}
+            {followUp ? "Atualize as informações do follow up." : "Preencha os campos abaixo para criar um novo follow up."}
           </DialogDescription>
         </DialogHeader>
 
@@ -327,7 +327,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                   <FormItem>
                     <FormLabel>Nome *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite o nome da tarefa" {...field} />
+                      <Input placeholder="Digite o nome do follow up" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -342,7 +342,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                     <FormLabel>Descrição</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Digite uma descrição para a tarefa"
+                        placeholder="Digite uma descrição para o follow up"
                         className="resize-none"
                         rows={3}
                         {...field}
@@ -646,7 +646,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                     <FormLabel>Notas/Observações</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Adicione observações, links, ou informações adicionais relevantes para esta tarefa"
+                        placeholder="Adicione observações, links, ou informações adicionais relevantes para este follow up"
                         className="resize-none"
                         rows={3}
                         {...field}
@@ -663,7 +663,7 @@ export function TaskForm({ isOpen, onClose, task, onSuccess }: TaskFormProps) {
                 Cancelar
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Salvando..." : task ? "Atualizar" : "Criar Tarefa"}
+                {isLoading ? "Salvando..." : followUp ? "Atualizar" : "Criar Follow Up"}
               </Button>
             </DialogFooter>
           </form>

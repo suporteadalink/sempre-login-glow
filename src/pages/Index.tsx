@@ -11,7 +11,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { CompanyForm } from "@/components/companies/CompanyForm";
 import { OpportunityForm } from "@/components/opportunities/OpportunityForm";
-import { TaskForm } from "@/components/tasks/TaskForm";
+import { FollowUpForm } from "@/components/followups/FollowUpForm";
 import { 
   DollarSign, 
   Users, 
@@ -92,19 +92,19 @@ const Index = () => {
     try {
       setLoadingTasks(true);
       const { data: tasks, error } = await supabase
-        .from('tasks')
+        .from('follow_ups')
         .select('*')
         .eq('status', 'Pendente')
         .order('due_date', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar tarefas pendentes:', error);
+        console.error('Erro ao buscar follow ups pendentes:', error);
         setPendingTasks([]);
       } else {
         setPendingTasks(tasks || []);
       }
     } catch (error) {
-      console.error('Erro ao carregar tarefas pendentes:', error);
+      console.error('Erro ao carregar follow ups pendentes:', error);
       setPendingTasks([]);
     } finally {
       setLoadingTasks(false);
@@ -771,13 +771,13 @@ const Index = () => {
         <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              Tarefas Pendentes
+              Follow Ups Pendentes
             </h3>
             <div className="space-y-4">
               {loadingTasks ? (
                 <div className="text-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Carregando tarefas...</p>
+                  <p className="text-sm text-muted-foreground">Carregando follow ups...</p>
                 </div>
               ) : pendingTasks.length > 0 ? (
                 pendingTasks.map((task) => (
@@ -806,7 +806,7 @@ const Index = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma tarefa pendente encontrada.
+                  Nenhum follow up pendente encontrado.
                 </p>
               )}
             </div>
@@ -838,11 +838,11 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      <TaskForm
+      <FollowUpForm
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         onSuccess={handleModalSuccess}
-        task={taskType ? { type: taskType } : undefined}
+        followUp={taskType ? { type: taskType } : undefined}
       />
     </div>
   );

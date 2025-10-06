@@ -11,7 +11,7 @@ import Login from "./pages/Login";
 import Pipeline from "./pages/Pipeline";
 import Projects from "./pages/Projects";
 import Companies from "./pages/Companies";
-import Tasks from "./pages/Tasks";
+import FollowUps from "./pages/FollowUps";
 import Proposals from "./pages/Proposals";
 import Settings from "./pages/Settings";
 import AIMonitoring from "./pages/AIMonitoring";
@@ -46,7 +46,7 @@ const App = () => {
                       <Route path="/pipeline" element={<Pipeline />} />
                       <Route path="/projetos" element={<Projects />} />
                       <Route path="/empresas" element={<Companies />} />
-                      <Route path="/tarefas" element={<Tasks />} />
+                      <Route path="/follow-ups" element={<FollowUps />} />
                       <Route path="/propostas" element={<Proposals />} />
                       <Route path="/configuracoes" element={<Settings />} />
                       <Route path="/ai-monitoring" element={<AIMonitoring />} />
