@@ -421,7 +421,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               .insert({
                 name: contact.name || "",
                 phone: contact.phone || "",
-                email: contact.email || "",
+                email: contact.email?.trim() || null,
                 role: contact.role || "",
                 company_id: company.id,
                 owner_id: companyOwnerId
@@ -458,7 +458,7 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               .insert({
                 name: contact.name || "",
                 phone: contact.phone || "",
-                email: contact.email || "",
+                email: contact.email?.trim() || null,
                 role: contact.role || "",
                 company_id: newCompany.id,
                 owner_id: companyOwnerId
