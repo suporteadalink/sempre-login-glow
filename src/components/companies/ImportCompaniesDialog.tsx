@@ -178,11 +178,18 @@ export default function ImportCompaniesDialog({ isOpen, onClose, onSuccess }: Im
       
       const { data: userData } = await supabase
         .from('users')
-        .select('role, name')
+        .select('name')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+      
+      // Fetch role from user_roles table
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
         
-      return { ...user, ...userData };
+      return { ...user, ...userData, role: roleData?.role || 'vendedor' };
     }
   });
   

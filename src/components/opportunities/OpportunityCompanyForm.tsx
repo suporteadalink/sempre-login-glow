@@ -239,18 +239,21 @@ export function OpportunityCompanyForm({ onSuccess }: OpportunityCompanyFormProp
     },
   });
 
-  // Get user role
+  // Get user role using the new secure user_roles table
   const { data: userRole } = useQuery({
     queryKey: ["user-role", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
-        .from("users")
+        .from("user_roles")
         .select("role")
-        .eq("id", user.id)
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return null;
+      }
       return data?.role;
     },
     enabled: !!user?.id

@@ -243,12 +243,15 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
-        .from("users")
+        .from("user_roles")
         .select("role")
-        .eq("id", user.id)
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return null;
+      }
       return data?.role;
     },
     enabled: !!user?.id

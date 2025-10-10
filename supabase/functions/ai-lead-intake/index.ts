@@ -73,14 +73,26 @@ serve(async (req) => {
     }
 
     // Get first admin user as default owner (fallback to null if none found)
-    const { data: adminUsers } = await supabase
-      .from('users')
-      .select('id')
+    const { data: adminRoles } = await supabase
+      .from('user_roles')
+      .select('user_id')
       .eq('role', 'admin')
-      .eq('status', 'Ativo')
       .limit(1);
     
-    const defaultOwnerId = adminUsers?.[0]?.id || null;
+    const adminUserId = adminRoles?.[0]?.user_id;
+    
+    // Verify admin user is active
+    let defaultOwnerId = null;
+    if (adminUserId) {
+      const { data: adminUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', adminUserId)
+        .eq('status', 'Ativo')
+        .maybeSingle();
+      
+      defaultOwnerId = adminUser?.id || null;
+    }
 
     // Check if company already exists (by CNPJ if provided, otherwise by name)
     let existingCompany = null;

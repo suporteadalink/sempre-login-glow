@@ -48,13 +48,13 @@ Deno.serve(async (req) => {
     }
 
     // Check if requesting user is admin
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
       .select('role')
-      .eq('id', requestingUser.id)
-      .single()
+      .eq('user_id', requestingUser.id)
+      .maybeSingle()
 
-    if (userError || userData?.role !== 'admin') {
+    if (roleError || roleData?.role !== 'admin') {
       throw new Error('Only admins can delete users')
     }
 

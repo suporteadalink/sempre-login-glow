@@ -85,12 +85,12 @@ serve(async (req) => {
 
     console.log('✅ User validated:', user.id, user.email);
 
-    // Get user role (using service client to bypass RLS)
+    // Get user data (using service client to bypass RLS)
     const { data: userData, error: userError } = await serviceClient
       .from('users')
-      .select('role, name')
+      .select('name')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (userError) {
       console.error('❌ Error fetching user data:', userError.message);
@@ -103,7 +103,14 @@ serve(async (req) => {
       );
     }
 
-    const userRole = userData?.role || 'vendedor';
+    // Get user role from user_roles table
+    const { data: roleData } = await serviceClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    const userRole = roleData?.role || 'vendedor';
     console.log('✅ User role:', userRole, '| User name:', userData?.name);
 
     // Choose client based on role

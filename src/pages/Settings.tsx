@@ -110,14 +110,17 @@ export default function Settings() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile, error } = await supabase
-          .from('users')
+        const { data: roleData, error } = await supabase
+          .from('user_roles')
           .select('role')
-          .eq('id', user.id)
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
         
-        if (error) throw error;
-        setUserProfile(profile);
+        if (error) {
+          console.error('Error fetching user role:', error);
+          return;
+        }
+        setUserProfile(roleData ? { role: roleData.role } : null);
       }
     } catch (error) {
       console.error('Erro ao buscar perfil do usuário:', error);
@@ -128,20 +131,31 @@ export default function Settings() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile, error } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('users')
-          .select('id, name, phone, role')
+          .select('id, name, phone')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
         
-        if (error) throw error;
+        if (profileError) throw profileError;
+        
+        // Fetch role from user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (roleError) {
+          console.error('Error fetching user role:', roleError);
+        }
         
         const userData: UserProfile = {
           id: user.id,
           name: profile?.name || '',
           email: user.email || '',
           phone: profile?.phone || '',
-          role: profile?.role || 'vendedor'
+          role: roleData?.role || 'vendedor'
         };
         
         setCurrentUser(userData);
@@ -159,11 +173,27 @@ export default function Settings() {
     try {
       const { data: users, error } = await supabase
         .from('users')
-        .select('id, name, phone, status, role')
+        .select('id, name, phone, status')
         .order('name');
 
       if (error) throw error;
-      setUsers(users || []);
+      
+      // Fetch roles for all users
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      if (rolesError) {
+        console.error('Error fetching user roles:', rolesError);
+      }
+      
+      // Merge users with their roles
+      const usersWithRoles = (users || []).map(user => ({
+        ...user,
+        role: userRoles?.find(ur => ur.user_id === user.id)?.role || 'vendedor'
+      }));
+      
+      setUsers(usersWithRoles);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
       toast({
@@ -352,17 +382,27 @@ export default function Settings() {
     setLoading(true);
     try {
       if (editingUser) {
-        // Update existing user in users table only
-        const { error } = await supabase
+        // Update existing user in users table (without role)
+        const { error: userUpdateError } = await supabase
           .from('users')
           .update({
             name: userFormData.name,
-            phone: userFormData.phone,
-            role: userFormData.role
+            phone: userFormData.phone
           })
           .eq('id', editingUser.id);
 
-        if (error) throw error;
+        if (userUpdateError) throw userUpdateError;
+        
+        // Update role in user_roles table
+        // First, delete existing role (upsert will handle this better)
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .upsert({
+            user_id: editingUser.id,
+            role: userFormData.role as 'admin' | 'vendedor'
+          } as any); // Type assertion needed until types are regenerated
+        
+        if (roleError) throw roleError;
         
         toast({
           title: "Sucesso",

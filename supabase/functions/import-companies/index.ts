@@ -69,13 +69,13 @@ Deno.serve(async (req) => {
     }
 
     // Check if user has permission to import (admin or has owner_id)
-    const { data: userData, error: userError } = await supabaseClient
-      .from('users')
+    const { data: roleData, error: roleError } = await supabaseClient
+      .from('user_roles')
       .select('role')
-      .eq('id', user.id)
-      .single()
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-    if (userError || !userData) {
+    if (roleError) {
       return new Response(
         JSON.stringify({ error: 'User not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     let actualOwnerId = user.id;
     if (owner_id) {
       // Only admins can assign companies to other users
-      if (userData.role !== 'admin') {
+      if (roleData?.role !== 'admin') {
         return new Response(
           JSON.stringify({ error: 'Only admins can assign companies to other users' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -117,10 +117,10 @@ Deno.serve(async (req) => {
       // Validate that the target user exists and is active
       const { data: targetUser, error: userError } = await supabaseClient
         .from('users')
-        .select('id, name, role, status')
+        .select('id, name, status')
         .eq('id', owner_id)
         .eq('status', 'Ativo')
-        .single()
+        .maybeSingle()
       
       if (userError || !targetUser) {
         return new Response(
