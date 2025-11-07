@@ -593,9 +593,25 @@ export function CompanyForm({ company, onSuccess, onCancel }: CompanyFormProps) 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Setor</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Setor de atividade" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Setor de atividade" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Tecnologia">Tecnologia</SelectItem>
+                      <SelectItem value="Varejo">Varejo</SelectItem>
+                      <SelectItem value="Serviços">Serviços</SelectItem>
+                      <SelectItem value="Indústria">Indústria</SelectItem>
+                      <SelectItem value="Saúde">Saúde</SelectItem>
+                      <SelectItem value="Educação">Educação</SelectItem>
+                      <SelectItem value="Financeiro">Financeiro</SelectItem>
+                      <SelectItem value="Imobiliário">Imobiliário</SelectItem>
+                      <SelectItem value="Alimentício">Alimentício</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
