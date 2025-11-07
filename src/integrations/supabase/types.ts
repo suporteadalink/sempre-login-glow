@@ -742,10 +742,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      debug_auth_context: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      debug_auth_context: { Args: never; Returns: string }
       delete_company_with_relations: {
         Args: { company_id_param: number }
         Returns: boolean
@@ -755,41 +752,17 @@ export type Database = {
         Returns: boolean
       }
       fix_company_opportunity_owner_inconsistencies: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Json
       }
-      get_conversion_goal_progress: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_conversion_trend: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_dashboard_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_leads_goal_progress: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_my_goal_progress: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_pipeline_distribution: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_projects_goal_progress: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_recent_activities: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_conversion_goal_progress: { Args: never; Returns: Json }
+      get_conversion_trend: { Args: never; Returns: Json }
+      get_dashboard_metrics: { Args: never; Returns: Json }
+      get_leads_goal_progress: { Args: never; Returns: Json }
+      get_my_goal_progress: { Args: never; Returns: Json }
+      get_pipeline_distribution: { Args: never; Returns: Json }
+      get_projects_goal_progress: { Args: never; Returns: Json }
+      get_recent_activities: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -797,14 +770,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      initialize_proposal_versions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      initialize_proposal_versions: { Args: never; Returns: undefined }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "vendedor"
