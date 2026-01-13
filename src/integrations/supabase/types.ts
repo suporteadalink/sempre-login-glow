@@ -163,6 +163,45 @@ export type Database = {
           },
         ]
       }
+      company_stage_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          company_id: number
+          id: number
+          stage_id: number
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          company_id: number
+          id?: number
+          stage_id: number
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          company_id?: number
+          id?: number
+          stage_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_stage_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_stage_history_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           ai_confidence: number | null
@@ -367,13 +406,18 @@ export type Database = {
           description: string | null
           expected_close_date: string | null
           id: number
+          loss_reason: string | null
+          loss_reason_detail: string | null
+          lost_at: string | null
           owner_id: string
+          participants_count: number | null
           probability: number | null
           project_id: number | null
           source: string | null
           stage_id: number
           title: string
           value: number
+          won_at: string | null
         }
         Insert: {
           ai_confidence?: number | null
@@ -384,13 +428,18 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           id?: never
+          loss_reason?: string | null
+          loss_reason_detail?: string | null
+          lost_at?: string | null
           owner_id: string
+          participants_count?: number | null
           probability?: number | null
           project_id?: number | null
           source?: string | null
           stage_id: number
           title: string
           value: number
+          won_at?: string | null
         }
         Update: {
           ai_confidence?: number | null
@@ -401,13 +450,18 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           id?: never
+          loss_reason?: string | null
+          loss_reason_detail?: string | null
+          lost_at?: string | null
           owner_id?: string
+          participants_count?: number | null
           probability?: number | null
           project_id?: number | null
           source?: string | null
           stage_id?: number
           title?: string
           value?: number
+          won_at?: string | null
         }
         Relationships: [
           {
@@ -440,6 +494,45 @@ export type Database = {
           },
           {
             foreignKeyName: "opportunities_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_stage_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          id: number
+          opportunity_id: number
+          stage_id: number
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: number
+          opportunity_id: number
+          stage_id: number
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: number
+          opportunity_id?: number
+          stage_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_stage_history_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_stage_history_stage_id_fkey"
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "pipeline_stages"
@@ -526,12 +619,17 @@ export type Database = {
           description: string | null
           end_date: string | null
           id: number
+          lost_at: string | null
           manager_id: string | null
           progress: number | null
           project_code: string | null
+          project_scope_split: boolean | null
+          project_scope_split_type: string | null
+          project_type: string | null
           start_date: string | null
           status: string | null
           title: string
+          won_at: string | null
         }
         Insert: {
           budget?: number | null
@@ -540,12 +638,17 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: never
+          lost_at?: string | null
           manager_id?: string | null
           progress?: number | null
           project_code?: string | null
+          project_scope_split?: boolean | null
+          project_scope_split_type?: string | null
+          project_type?: string | null
           start_date?: string | null
           status?: string | null
           title: string
+          won_at?: string | null
         }
         Update: {
           budget?: number | null
@@ -554,12 +657,17 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           id?: never
+          lost_at?: string | null
           manager_id?: string | null
           progress?: number | null
           project_code?: string | null
+          project_scope_split?: boolean | null
+          project_scope_split_type?: string | null
+          project_type?: string | null
           start_date?: string | null
           status?: string | null
           title?: string
+          won_at?: string | null
         }
         Relationships: [
           {
@@ -634,6 +742,7 @@ export type Database = {
           created_at: string | null
           current_version: number | null
           id: number
+          lost_at: string | null
           owner_id: string
           pdf_url: string | null
           project_id: number | null
@@ -641,12 +750,14 @@ export type Database = {
           title: string
           value: number | null
           version_count: number | null
+          won_at: string | null
         }
         Insert: {
           company_id?: number | null
           created_at?: string | null
           current_version?: number | null
           id?: never
+          lost_at?: string | null
           owner_id: string
           pdf_url?: string | null
           project_id?: number | null
@@ -654,12 +765,14 @@ export type Database = {
           title: string
           value?: number | null
           version_count?: number | null
+          won_at?: string | null
         }
         Update: {
           company_id?: number | null
           created_at?: string | null
           current_version?: number | null
           id?: never
+          lost_at?: string | null
           owner_id?: string
           pdf_url?: string | null
           project_id?: number | null
@@ -667,6 +780,7 @@ export type Database = {
           title?: string
           value?: number | null
           version_count?: number | null
+          won_at?: string | null
         }
         Relationships: [
           {
@@ -686,6 +800,93 @@ export type Database = {
           {
             foreignKeyName: "proposals_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          company_id: number | null
+          contact_id: number | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: number
+          notes: string | null
+          opportunity_id: number | null
+          priority: string | null
+          project_id: number | null
+          responsible_id: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          company_id?: number | null
+          contact_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: number
+          notes?: string | null
+          opportunity_id?: number | null
+          priority?: string | null
+          project_id?: number | null
+          responsible_id?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          company_id?: number | null
+          contact_id?: number | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: number
+          notes?: string | null
+          opportunity_id?: number | null
+          priority?: string | null
+          project_id?: number | null
+          responsible_id?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_responsible_id_fkey"
+            columns: ["responsible_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -774,7 +975,13 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "vendedor"
+      app_role:
+        | "admin"
+        | "vendedor"
+        | "financial_editor"
+        | "financial_view"
+        | "medidor_editor"
+        | "medidor_view"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -902,7 +1109,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "vendedor"],
+      app_role: [
+        "admin",
+        "vendedor",
+        "financial_editor",
+        "financial_view",
+        "medidor_editor",
+        "medidor_view",
+      ],
     },
   },
 } as const
