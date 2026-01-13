@@ -198,15 +198,16 @@ serve(async (req) => {
     // Create opportunity if provided
     let opportunityId: number | null = null;
     if (aiData.opportunity?.title) {
-      // Get the "Novo Lead" pipeline stage
+      // Get the first pipeline stage (lowest order)
       const { data: pipelineStage } = await supabase
         .from('pipeline_stages')
         .select('id')
-        .eq('name', 'Novo Lead')
+        .order('order', { ascending: true })
+        .limit(1)
         .single();
 
       if (!pipelineStage) {
-        throw new Error('Pipeline stage "Novo Lead" not found');
+        throw new Error('No pipeline stages found');
       }
 
       const { data: newOpportunity, error: opportunityError } = await supabase
